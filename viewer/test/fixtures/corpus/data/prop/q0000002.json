@@ -1,0 +1,103 @@
+{
+  "proposition": {
+    "proposition_id": "q0000002",
+    "p": {
+      "author": null,
+      "empty": {
+        "node": "append",
+        "children": [
+          {
+            "node": "tag",
+            "tag": {
+              "kind": "identifier",
+              "text": "Kind",
+              "qualified_name": "Ethics.Kind",
+              "def_id": "k0000001",
+              "token_id": "t22",
+              "hover_kind": "const",
+              "binder_role": null,
+              "inlined_type_summary": null
+            },
+            "child": {
+              "node": "text",
+              "text": "Kind"
+            }
+          },
+          {
+            "node": "text",
+            "text": " p"
+          }
+        ]
+      }
+    },
+    "p_author_source": null,
+    "defined_by": null,
+    "holders": 2,
+    "rejecters": null,
+    "adoptable": true,
+    "endcap_eligible": true,
+    "settled": false,
+    "negation_proposition_id": null,
+    "acknowledgements": {
+      "acknowledged_undecided": 0
+    },
+    "supports": [
+      {
+        "def_id": "e0000001",
+        "name": "Ethics.everyone_kind",
+        "premise_count": 1,
+        "concludes_false": false,
+        "source": "theorem",
+        "premise_axiom_ids": [
+          "g0000001"
+        ]
+      }
+    ],
+    "holder_rows": [
+      {
+        "username": "AliceSmith",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "e0000001",
+          "source": "theorem"
+        }
+      },
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "y0000001",
+          "source": "theorem"
+        }
+      }
+    ],
+    "rejecter_rows": [],
+    "equivalences": []
+  },
+  "holders": {
+    "proposition_id": "q0000002",
+    "pro": [
+      {
+        "username": "AliceSmith",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "e0000001",
+          "source": "theorem"
+        }
+      },
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "y0000001",
+          "source": "theorem"
+        }
+      }
+    ],
+    "con": []
+  }
+}

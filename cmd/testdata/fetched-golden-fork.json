@@ -1,0 +1,25 @@
+{
+  "schema": 2,
+  "entries": {
+    "b2222222.lean": {
+      "file_id": "b2222222",
+      "fetched_at": "2026-10-01T12:00:00Z",
+      "indirect": true
+    },
+    "c3333333.lean": {
+      "file_id": "c3333333",
+      "fetched_at": "2026-10-01T12:00:00Z",
+      "indirect": true
+    },
+    "d4444444.lean": {
+      "file_id": "d4444444",
+      "fetched_at": "2026-10-01T12:00:00Z",
+      "indirect": true
+    },
+    "e5555555.lean": {
+      "file_id": "e5555555",
+      "fetched_at": "2026-10-01T12:00:00Z",
+      "indirect": true
+    }
+  }
+}

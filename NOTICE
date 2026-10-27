@@ -1,0 +1,10 @@
+axm
+Copyright 2026 Coherence Labs
+
+This product includes software developed by Coherence Labs.
+
+The corpus/ directory is not part of this product's Apache License 2.0 grant.
+Each corpus file belongs to its publisher; see corpus/NOTICE.
+
+The fonts under viewer/public/fonts/ are licensed under the SIL Open Font
+License 1.1; each font's license text sits beside it.

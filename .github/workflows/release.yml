@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  # The only job holding `contents: write`. Its token can publish a Release
+  # that every 2.x installs on its next `axm upgrade`, so no step but
+  # GoReleaser receives it, checkout does not persist it, and no dependency
+  # cache is restored into this job.
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GOTOOLCHAIN: go1.26.10
+      TAG: ${{ github.ref_name }}
+      # Every 2.x reads the GitHub Version Feed; no 2.x is below this.
+      FEED_CLI_MIN: "2.0.0"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Require the Published Corpus
+        run: |
+          if [ ! -f corpus/corpus.json ]; then
+            echo "::error::corpus/corpus.json is missing; the site tarball is built from viewer/ and corpus/"
+            exit 1
+          fi
+
+      # The site is built once, here; the archive Worker and `axm viewer`
+      # serve these bytes, pinned by the SHA-256 in the Version Feed.
+      - name: Build the site
+        working-directory: viewer
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npm ci
+          npm run build
+          npm run check:assets
+
+      - name: Build the site tarball
+        run: |
+          mkdir -p .release
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner --format=gnu -C viewer/out -cf - . \
+            | zstd -19 -q -f -o ".release/axiom-site-${TAG#v}.tar.zst"
+
+      # Builds axiom-corpus-<export_id>.tar.zst only when the corpusURL
+      # constant compiled into cmd/release.go names this tag, and fails unless
+      # the built asset matches the compiled corpusSHA256 and corpusURL.
+      - name: Build the corpus tarball on the Bridge Release tag
+        run: go run ./scripts/corpus-tarball -bridge-tag "$TAG" -release-source cmd/release.go -corpus corpus -out .release
+
+      - name: Write the GitHub Version Feed
+        run: |
+          go_const() {
+            sed -n "s/^[[:space:]]*\(const[[:space:]]\{1,\}\)\{0,1\}$1[[:space:]]*=[[:space:]]*\"\(.*\)\"[[:space:]]*\$/\2/p" "$2"
+          }
+          lean_client_tag=$(go_const leanClientTag cmd/release.go)
+          lean_client_remote=$(go_const initSource cmd/init.go)
+          if [ -z "$lean_client_tag" ] || [ -z "$lean_client_remote" ]; then
+            echo "::error::leanClientTag (cmd/release.go) or initSource (cmd/init.go) is not a string constant"
+            exit 1
+          fi
+          toolchain=$(jq -er .toolchain corpus/corpus.json)
+          site=".release/axiom-site-${TAG#v}.tar.zst"
+          jq -n \
+            --arg min "$FEED_CLI_MIN" \
+            --arg current "${TAG#v}" \
+            --arg tag "$lean_client_tag" \
+            --arg remote "$lean_client_remote" \
+            --arg toolchain "$toolchain" \
+            --arg asset "$(basename "$site")" \
+            --arg sha "$(sha256sum "$site" | cut -d' ' -f1)" \
+            '{cli: {min: $min, current: $current},
+              lean_client: {current_tag: $tag, remote_url: $remote},
+              toolchain: {current: $toolchain},
+              web_bundle: {current_hash: ""},
+              site: {asset: $asset, sha256: $sha}}' \
+            > .release/axm-version.json
+          cat .release/axm-version.json
+
+      - name: GoReleaser draft Release
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          distribution: goreleaser
+          version: v2.12.7
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The verified GCS copy of the draft is checked against these lines.
+      - name: SHA-256 of every draft asset
+        run: sha256sum dist/*.tar.gz dist/*.zip dist/checksums.txt .release/* install/install.sh install/install.ps1

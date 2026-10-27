@@ -1,0 +1,48 @@
+{
+  "proposition": {
+    "proposition_id": "q0000004",
+    "p": {
+      "author": null,
+      "empty": {
+        "node": "text",
+        "text": "P"
+      }
+    },
+    "p_author_source": null,
+    "defined_by": null,
+    "holders": 1,
+    "rejecters": null,
+    "adoptable": true,
+    "endcap_eligible": true,
+    "settled": false,
+    "negation_proposition_id": null,
+    "acknowledgements": {
+      "acknowledged_undecided": 0
+    },
+    "supports": [],
+    "holder_rows": [
+      {
+        "username": "bob",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "hp",
+        "snapshot_def_id": "m0000001"
+      }
+    ],
+    "rejecter_rows": [],
+    "equivalences": []
+  },
+  "holders": {
+    "proposition_id": "q0000004",
+    "pro": [
+      {
+        "username": "bob",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "hp",
+        "snapshot_def_id": "m0000001"
+      }
+    ],
+    "con": []
+  }
+}

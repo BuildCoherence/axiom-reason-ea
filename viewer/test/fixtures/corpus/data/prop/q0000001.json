@@ -1,0 +1,147 @@
+{
+  "proposition": {
+    "proposition_id": "q0000001",
+    "p": {
+      "author": null,
+      "empty": {
+        "node": "append",
+        "children": [
+          {
+            "node": "text",
+            "text": "∀ p : "
+          },
+          {
+            "node": "tag",
+            "tag": {
+              "kind": "identifier",
+              "text": "Person",
+              "qualified_name": "Ethics.Person",
+              "def_id": "p0000001",
+              "token_id": "t20",
+              "hover_kind": "const",
+              "binder_role": null,
+              "inlined_type_summary": null
+            },
+            "child": {
+              "node": "text",
+              "text": "Person"
+            }
+          },
+          {
+            "node": "text",
+            "text": ", "
+          },
+          {
+            "node": "tag",
+            "tag": {
+              "kind": "identifier",
+              "text": "Kind",
+              "qualified_name": "Ethics.Kind",
+              "def_id": "k0000001",
+              "token_id": "t21",
+              "hover_kind": "const",
+              "binder_role": null,
+              "inlined_type_summary": null
+            },
+            "child": {
+              "node": "text",
+              "text": "Kind"
+            }
+          },
+          {
+            "node": "text",
+            "text": " p"
+          }
+        ]
+      }
+    },
+    "p_author_source": null,
+    "defined_by": null,
+    "holders": 3,
+    "rejecters": 1,
+    "adoptable": true,
+    "endcap_eligible": true,
+    "settled": false,
+    "negation_proposition_id": null,
+    "acknowledgements": {
+      "acknowledged_undecided": 0
+    },
+    "supports": [],
+    "holder_rows": [
+      {
+        "username": "AliceSmith",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "golden_rule",
+        "snapshot_def_id": "g0000001"
+      },
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "x0000001",
+          "source": "theorem"
+        }
+      },
+      {
+        "username": "carol",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "golden_rule",
+        "snapshot_def_id": "g0000001"
+      }
+    ],
+    "rejecter_rows": [
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "m0000001",
+          "source": "theorem"
+        }
+      }
+    ],
+    "equivalences": []
+  },
+  "holders": {
+    "proposition_id": "q0000001",
+    "pro": [
+      {
+        "username": "AliceSmith",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "golden_rule",
+        "snapshot_def_id": "g0000001"
+      },
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "x0000001",
+          "source": "theorem"
+        }
+      },
+      {
+        "username": "carol",
+        "provenance": "axiom",
+        "inconsistent": false,
+        "axiom_name": "golden_rule",
+        "snapshot_def_id": "g0000001"
+      }
+    ],
+    "con": [
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "m0000001",
+          "source": "theorem"
+        }
+      }
+    ]
+  }
+}

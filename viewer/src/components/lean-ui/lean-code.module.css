@@ -1,0 +1,96 @@
+/* Lean source surface — see lean-code.tsx for the theming + CSP rationale.
+ *
+ * Token colours come from the single Base16 Shiki theme (base16-shiki-theme.ts)
+ * as `var(--base0X)` references, so light/dark is handled by the theme
+ * variables with no per-mode override. This module owns only the wrapper chrome
+ * and the line-number gutter. */
+
+.leanCode {
+  border: 1px solid var(--base02);
+  border-radius: 6px;
+  overflow-x: auto;
+  /* Match the profile axioms block's monospace + size for a consistent code
+   * surface across the public pages. The Shiki <pre> paints its own background
+   * (--base01, from the Base16 theme), so we don't set one here. */
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* axe scrollable-region-focusable: the region is keyboard-focusable
+ * (tabIndex={0} in the component); give it a visible focus indicator that
+ * survives Windows High Contrast Mode (outline, not box-shadow), matching the
+ * theme foundation's focus-ring convention. */
+.leanCode:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Shiki emits `<pre class="shiki ..."><code><span class="line">…`. Reset the
+ * default pre margin and give the block breathing room. The :global escape
+ * hatch is required because `.shiki` / `.line` are Shiki-authored class names
+ * inside dangerouslySetInnerHTML, not CSS-Module-local names. */
+.leanCode :global(pre.shiki) {
+  margin: 0;
+  padding: 0.75rem 0;
+  /* CSS counter for the line-number gutter, seeded per code block. */
+  counter-reset: line;
+  /* Size the <pre> to the widest line (not the viewport) so its themed
+   * background (var(--base01)) spans the FULL horizontal-scroll width — with
+   * `width: 100%` the background stopped at the initial viewport width and
+   * scrolling right on mobile revealed the page background. `min-width: 100%`
+   * keeps it filling the container when the code is narrow. See
+   * https://github.com/vercel/streamdown/issues/24. */
+  width: max-content;
+  min-width: 100%;
+}
+
+.leanCode :global(pre.shiki code) {
+  /* `code` is inline by default; make it a block so each `.line` is its own
+   * row and the counter gutter aligns. */
+  display: block;
+}
+
+.leanCode :global(.line) {
+  counter-increment: line;
+  display: inline-block;
+  /* `min-width: 100%` (not `width: 100%`): each line fills at least the
+   * container but grows to its own content width, so the line box reaches the
+   * true horizontal-scroll end rather than being capped at viewport width. */
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 0 1rem;
+}
+
+/* Line-number gutter via ::before on each line — a CSS-counter gutter (no
+ * extra DOM, no client JS). Seeds the future "scroll to line N" side-panel
+ * affordance named in the spec. The numbers use the Base16 "line numbers"
+ * slot (base03) so they read as secondary against the source. */
+.leanCode :global(.line)::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.5rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: var(--base03);
+  /* Don't let the gutter be selected when the visitor copies the source. */
+  user-select: none;
+}
+
+/* Import file references render as links (render-hast `FileRefLink`); same
+ * solid-underline link affordance as the file body's `.ce-file-ref`. */
+.leanCode :global(.ce-file-ref) {
+  color: var(--base0D);
+  text-decoration: underline solid;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.leanCode :global(.ce-file-ref:hover) {
+  text-decoration-thickness: 2px;
+}
+
+.leanCode :global(.ce-file-ref:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

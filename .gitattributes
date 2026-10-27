@@ -1,0 +1,4 @@
+# Byte identity: corpus files are hashed against the compiled-in corpus asset,
+# and the corpus tarball golden test hashes its fixture on every OS.
+corpus/** -text
+scripts/corpus-tarball/testdata/corpus/** -text

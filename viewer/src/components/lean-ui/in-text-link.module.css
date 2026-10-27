@@ -1,0 +1,24 @@
+.link {
+  color: var(--base0D);
+  text-decoration: underline solid;
+  text-decoration-color: var(--base0D);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  transition: text-decoration-thickness 120ms ease;
+}
+
+.link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+}

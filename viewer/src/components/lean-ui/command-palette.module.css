@@ -1,0 +1,74 @@
+/* "Jump to declaration" command palette — the per-row layout of leaf name +
+ * trailing qualified-name caption. Dialog chrome, input, and the list scroller
+ * come from `components/ui/command.tsx` and `dialog.tsx` (shadcn). The two
+ * spans live inside a cmdk `Item` (a flex row by default), so we don't need a
+ * wrapper — the leaf name takes its intrinsic width and the qualified name is
+ * pushed to the right edge with `margin-left: auto`. */
+
+/* Mobile (< md / 768px): bump the palette input's font-size to 1rem (16px).
+ * The shadcn `CommandInput` ships with `text-sm` (14px); iOS Safari zooms
+ * the page when a touched input has font-size < 16px, which on the file
+ * page nudges the workbench layout out of the viewport for a frame. 16px
+ * defeats the auto-zoom while leaving the desktop sizing untouched. */
+@media (max-width: 767px) {
+  .input {
+    font-size: 1rem;
+  }
+}
+
+.localName {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--base05);
+}
+
+.qualifiedName {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--base04);
+  /* Truncate exotic-long qualified names so the row stays one line. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+/* Footer with the standard cmdk navigation hints (↑↓ navigate / ↵ open /
+ * Esc close) plus a `?` discoverability prompt for the broader shortcuts
+ * dialog. Surfaces while the palette is open so the visitor sees the
+ * minimum-viable affordances without an out-of-band help affordance. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--base02);
+  background-color: var(--base01);
+  font-size: 0.7rem;
+  color: var(--base04);
+}
+
+.footerHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--base02);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background-color: var(--base00);
+  color: var(--base05);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1;
+}

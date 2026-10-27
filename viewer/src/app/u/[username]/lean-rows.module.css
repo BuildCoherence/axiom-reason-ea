@@ -1,0 +1,22 @@
+/* Shiki-output reset for the author-view source-bytes path (D23). ShikiSlice's
+ * hast root is Shiki's block-level `<pre class="shiki">`; inline it + zero its
+ * chrome so the proposition flows on the `axiom <name> : <prop>` line instead of
+ * breaking to a block with its own background and font. This is the SAME reset
+ * the profile page's `.codeSurface :global(pre.shiki)` (page.module.css) and the
+ * side panel (side-panel.module.css) and the file body (ce-file-body.module.css)
+ * apply — kept declaration-for-declaration identical so the inline `.code` slice
+ * and the full-width `.codeSurface` slice read the same. The `:global` escape
+ * hatch is required because `shiki` is a Shiki-authored class carried through the
+ * `renderHast` React walk, not a CSS-Module-local name. */
+.code :global(pre.shiki) {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  white-space: inherit;
+  font: inherit;
+}
+
+.code :global(pre.shiki code) {
+  display: inline;
+}

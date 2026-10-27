@@ -1,0 +1,434 @@
+/* CE file body — one continuous Shiki block whose identifier spans are
+ * DECORATED server-side (Shiki `decorations` driven by the backend's
+ * `source_tokens`). Clickable identifiers carry `class="ce-identifier"`
+ * stamped by the decoration; styled via the :global rule below since the
+ * class name is a Shiki-stamped string carried through the `renderHast`
+ * React walk, not a CSS-Module local (CSS Modules never hashes it).
+ * See ce-file-body.tsx / page.tsx for the architecture rationale.
+ *
+ * The body lives inside `.mainColumn` (below), which constrains the
+ * file-header chrome + source body to a 920px reading column. The
+ * `LeanUIShell` that hosts both `.mainColumn` and the side panel is
+ * page-wide — lifting the side panel OUT of the reading column so it can
+ * extend toward the viewport edge (otherwise a `pre.shiki`
+ * `width: max-content` floor would squeeze the panel to ~30-40px). */
+
+/* Workbench-shell wrapper around the LeanUIShell — flex-grows inside the
+ * file route's workbench column so the status bar sibling sits at
+ * `flex: 0 0 auto` underneath. The shell's `ResizablePanelGroup` is
+ * `flex h-full w-full`, which resolves against this wrapper's flex-sized
+ * box. On the profile page, CeFileBody is not used (profile has its own
+ * body component); this wrapper is therefore file-page only. `min-height: 0`
+ * is load-bearing inside a flex column: flex items default to
+ * `min-height: auto`, which would otherwise let the LeanUIShell's content
+ * push the wrapper past its allotted height. */
+.shellWrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Page-level reading column — replaces the old per-route `.main` divs
+ * that wrapped header + body inside `max-width: 920px`. Lives INSIDE the
+ * `LeanUIShell`'s main slot so the side panel and the main column are
+ * siblings under the shell; the shell is page-wide and the reading
+ * column is centred inside the shell's main pane. Matches the public-page
+ * chrome (920px) used by /u/[username] and /search so line lengths are
+ * consistent across the public surface. `width: 100%` is load-bearing
+ * inside the shell's flex `ResizablePanel` for the same reason it was
+ * load-bearing inside the chrome's `<main>` flex container: without an
+ * explicit width the centred item shrink-wraps to the longest source
+ * line and stretches the column up to its `max-width`.
+ *
+ * `height: 100%; min-height: 0` lets the column fill its pane vertically
+ * inside the workbench wrapper on f/[file_id]/page.tsx (`fixed inset-x-0
+ * bottom-0 top-[var(--ce-nav-height)] overflow-hidden`), so the `.body`
+ * child can `flex: 1 1 auto; min-height: 0; overflow-y: auto` and scroll
+ * inside the pane — VS Code Web workbench pattern. CeFileBody is only
+ * mounted on the file route; the profile route uses its own
+ * ProfileBody, also wrapped in a workbench on page.tsx. */
+.mainColumn {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  /* Flex column so the header + body stack vertically inside the main
+   * pane (the previous `<div className="main">` inherited block layout
+   * directly; the shell's flex pane inherits flex-row). */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The source-body container — fills the remaining height inside
+ * `.mainColumn` (so the workbench pane's main column scrolls inside the
+ * body wrapper rather than carrying the whole page down) and provides
+ * horizontal scroll for the longest source line. `min-height: 0` is
+ * load-bearing inside a flex column: flex items default to
+ * `min-height: auto`, which would otherwise let the intrinsic
+ * `pre.shiki` height push the body past the pane edge instead of
+ * scrolling. */
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* `position: relative` establishes a containing block for the
+   * sticky decl-header overlay (a child) — sticky elements stick within
+   * their nearest scrolling ancestor's padding box, which is `.body`'s
+   * own box, so a relative-positioning anchor here is defensive. */
+  position: relative;
+  border: 1px solid var(--base02);
+  border-radius: 6px;
+  /* Single Shiki <pre> manages horizontal scroll for the longest source
+   * line; the wrapper exposes the same scroll for the keyboard-reachable
+   * focus target. Vertical scroll is the workbench-shell's pane-internal
+   * scroll. */
+  overflow-x: auto;
+  overflow-y: auto;
+  /* Thin, theme-aware scrollbars — VS Code Web idiom. `scrollbar-width: thin`
+   * + `scrollbar-color` is the modern CSS standard (Firefox + Chromium 121+);
+   * the `::-webkit-scrollbar` rules below cover older WebKit / Safari. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--base03) transparent;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  background-color: var(--base01);
+}
+
+.body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background-color: var(--base03);
+  border-radius: 6px;
+  border: 2px solid var(--base01); /* lighter "padding" inside the track */
+}
+
+.body::-webkit-scrollbar-thumb:hover {
+  background-color: var(--base04);
+}
+
+.body::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Mobile (< md / 768px): bump the source font size from 0.875rem (14px) to
+ * 1rem (16px). 14px is hard to read on a 390px iPhone, and 16px also matches
+ * iOS Safari's no-zoom-on-focus threshold (Safari zooms the page when a
+ * touched input is < 16px). `overscroll-behavior: contain` keeps pull-to-
+ * refresh and overscroll-rubber-band gestures inside the body scroller —
+ * the document-level pull-to-refresh would otherwise trigger when the
+ * visitor scrolled to the top of the source body. */
+@media (max-width: 767px) {
+  .body {
+    font-size: 1rem;
+    overscroll-behavior: contain;
+  }
+}
+
+/* axe scrollable-region-focusable: the region is keyboard-focusable
+ * (tabIndex={0} in the component); give it a visible focus indicator that
+ * survives Windows High Contrast Mode (outline, not box-shadow), matching
+ * lean-code.module.css and the theme foundation's focus-ring convention. */
+.body:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Shiki output rules — duplicated from lean-code.module.css so this surface
+ * does not depend on lean-code's stylesheet being loaded (it usually is, but
+ * the dependency was implicit). The :global escape hatch is required
+ * because `.shiki`, `.line` are Shiki-authored class names carried through
+ * the `renderHast` React walk, not CSS-Module-local names. */
+
+.body :global(pre.shiki) {
+  margin: 0;
+  padding: 0.75rem 0;
+  counter-reset: line;
+  /* Size the <pre> to the widest line so its themed background spans the
+   * full horizontal-scroll width — `width: 100%` would stop the background
+   * at the initial viewport width and scrolling right would reveal the
+   * page background. `min-width: 100%` keeps it filling the container when
+   * the code is narrow. */
+  width: max-content;
+  min-width: 100%;
+  background-color: transparent;
+}
+
+.body :global(pre.shiki code) {
+  display: block;
+}
+
+.body :global(.line) {
+  counter-increment: line;
+  display: inline-block;
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 0 1rem;
+}
+
+.body :global(.line)::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.5rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: var(--base03);
+  user-select: none;
+}
+
+/* Subtle row hover — a faint `--base02` background reads as "this is
+ * the row you're on" without competing with the selected-decl /
+ * permalink highlights below, which use tinted `--base02` at higher
+ * alpha. */
+.body :global(.line:hover) {
+  background-color: var(--base02);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .body :global(.line) {
+    transition: background-color 60ms ease-out;
+  }
+}
+
+/* ---- Sticky decl-header overlay (VS Code 1.70+ "sticky scroll") ----- */
+
+/* Pinned strip at the top of the body's scroll container that shows the
+ * current decl's header text — VS Code 1.70 release notes § "Sticky
+ * scroll" pattern. Lives INSIDE `.body` (the scroll container) as a
+ * sibling above the Shiki `<pre>`; `position: sticky; top: 0` pins it to
+ * the body's top edge as the source scrolls past underneath. The body's
+ * onScroll handler (ce-file-body.tsx) updates which decl is rendered
+ * here; when no decl has scrolled past (visitor is in the file's
+ * import/open header) the overlay is unmounted entirely so the source's
+ * first lines stay fully visible.
+ *
+ * VISUALS — deliberately subtle so it reads as "context, not chrome":
+ *   - `bg-card` with some alpha so the source body shows through faintly
+ *   - thin border-bottom for separation
+ *   - same monospace font as the body so it reads as a continuation of
+ *     the decl header, not a new UI element
+ *   - low height (`0.25rem 1rem` padding) — the same proportion VS Code
+ *     uses for its sticky-scroll overlay
+ * The overlay is `aria-hidden` — it's a presentational scroll affordance
+ * that mirrors content already in the source tree, NOT new information,
+ * so duplicating it for AT would just announce the decl name twice. */
+
+.stickyDeclHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Slightly translucent `--base01` (the same surface as the body's
+   * background) so the source body shows through faintly. */
+  background-color: color-mix(in oklab, var(--base01) 92%, transparent);
+  /* Backdrop blur reads as a frosted-glass overlay — the standard
+   * sticky-overlay treatment (VS Code, Slack, etc.) so the scrolling
+   * source behind the strip stays legible without competing with it. */
+  backdrop-filter: saturate(180%) blur(6px);
+  border-bottom: 1px solid var(--base02);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  /* The overlay is purely presentational (`aria-hidden`, no interactive
+   * affordances). `pointer-events: none` lets clicks in the strip pass
+   * through to the source line underneath — important because the strip
+   * covers ~1.7rem of the topmost visible line, INCLUDING that line's
+   * gutter column where the line-number click-to-jump heuristic fires
+   * (see `onBodyClick` in ce-file-body.tsx). Without this, clicks in the
+   * gutter strip absorbed by the overlay (which has no handler) hit a
+   * dead zone. */
+  pointer-events: none;
+}
+
+.stickyDeclHeaderLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.25rem 1rem;
+  color: var(--base05);
+}
+
+.stickyDeclName {
+  color: var(--base0D);
+  font-weight: 500;
+}
+
+.stickyDeclQualifier {
+  color: var(--base04);
+  font-size: 0.78rem;
+  /* Overflow-ellipsis the qualifier so it never wraps to a second line
+   * and grows the overlay. The leaf name stays fully visible. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Honour `prefers-reduced-motion`: the overlay appears/disappears
+ * without animation. There's no explicit transition on the overlay
+ * today, but suppressing the backdrop-filter blur removes the
+ * subjective "motion-from-blur-transitions" effect some users
+ * report. (WCAG 2.3.3 "Animation from Interactions".) */
+@media (prefers-reduced-motion: reduce) {
+  .stickyDeclHeader {
+    backdrop-filter: none;
+    background-color: var(--base01);
+  }
+}
+
+/* ---- Identifier affordance (decoration-stamped spans) ---------------- */
+
+/* The server-side Shiki decoration stamps `class="ce-identifier"` (plus
+ * `data-def-id`, `role="button"`, `tabindex="0"`) onto each clickable
+ * identifier span. The visual affordance mirrors the side panel's
+ * TokenTreeView `.clickable` styling so the look stays consistent across
+ * the body and the panel. The `:global` escape hatch is required because
+ * `ce-identifier` is a Shiki-stamped class carried through the `renderHast`
+ * React walk, not a CSS-Module-local name. */
+
+.body :global(.ce-identifier) {
+  cursor: pointer;
+  /* Persistent affordance so "clickable" is not signalled by colour alone
+   * (WCAG 1.4.1). A subtle dotted underline reads as "interactive" at rest;
+   * hover/focus promote it to a solid underline. Kept low-contrast so it
+   * doesn't compete with the syntax-highlight colour. Mirrors the panel's
+   * TokenTreeView .clickable rest state. */
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.body :global(.ce-identifier:hover) {
+  text-decoration: underline;
+  text-decoration-color: var(--ring);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.body :global(.ce-identifier:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---- Import/open file-reference affordance --------------------------- */
+
+/* The server-side Shiki decoration stamps `class="ce-file-ref"` (plus
+ * `data-target-file-id`, `data-ref-kind`, `role="link"`, `tabindex="0"`) onto
+ * each import/open base50 token; `renderHast` renders these as real <a>
+ * anchors that NAVIGATE to the referenced file's page. The affordance is a
+ * deliberate LINK affordance — link colour + a persistent SOLID underline —
+ * distinct from `.ce-identifier`'s button affordance (a low-contrast DOTTED
+ * underline that opens an in-page panel), so the two interactions read
+ * differently at a glance (WCAG 1.4.1 — not signalled by colour alone). The
+ * colour uses the theme's accent var (`--base0D`) so it never hard-codes a
+ * palette value (Base16 vars; see globals.css). The `:global`
+ * escape hatch is required because `ce-file-ref` is a Shiki-stamped class
+ * carried through the `renderHast` React walk, not a CSS-Module-local name. */
+
+.body :global(.ce-file-ref) {
+  cursor: pointer;
+  color: var(--base0D);
+  text-decoration: underline solid;
+  text-decoration-color: var(--base0D);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  /* Only the underline emphasis animates on hover; disabled below for
+   * prefers-reduced-motion (WCAG 2.3.3). */
+  transition: text-decoration-thickness 120ms ease;
+}
+
+.body :global(.ce-file-ref:hover) {
+  text-decoration-thickness: 2px;
+}
+
+.body :global(.ce-file-ref:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body :global(.ce-file-ref) {
+    transition: none;
+  }
+}
+
+/* The `theorem` keyword of a theorem-kind decl opens the side panel on that
+ * theorem (render-hast mounts it as an `IdentifierSpan` targeted at
+ * `data-theorem-def-id`; the panel's "View theorem page" link is the navigation
+ * hop). It keeps its Shiki keyword color and reads normally; a pointer cursor +
+ * an on-hover/-focus underline signal it is clickable without underlining every
+ * theorem keyword at rest — deliberately lighter than `.ce-identifier`'s
+ * persistent dotted underline, which would repaint every decl header. */
+.body :global(.ce-theorem-keyword) {
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.body :global(.ce-theorem-keyword:hover) {
+  text-decoration: underline solid currentColor;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.body :global(.ce-theorem-keyword:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ---- Selected-decl highlight ---------------------------------------- */
+
+/* The selected decl's HEADER identifier span carries data-decl-wrapper +
+ * aria-current="true" (set by the selection effect). We mark it with a
+ * thin underline accent + tint so the visitor sees which decl the side
+ * panel is anchored to. The accent uses --base0D (the primary slot) to
+ * match the side panel's accent. */
+
+.body :global([data-decl-wrapper][aria-current="true"]) {
+  background-color: color-mix(in oklab, var(--base02) 60%, transparent);
+  box-shadow:
+    0 -1px 0 0 var(--base0D),
+    0 1px 0 0 var(--base0D);
+  border-radius: 2px;
+}
+
+/* ---- Click-to-jump line flash ------------------------------------- */
+
+/* When the visitor clicks the line-number gutter, `ce-file-body.tsx`
+ * stamps `data-line-flash="true"` on the matching `.line` element and
+ * removes it on `animationend`. The keyframe fades a `--base0D` tint
+ * from 30% opacity back to transparent over ~600ms — long enough to
+ * register, short enough to feel responsive. Honours
+ * `prefers-reduced-motion: reduce` (the keyframe is suppressed; the
+ * scroll-into-view also runs in `behavior: "auto"` so the whole
+ * interaction is still triggerable, just non-animated). */
+
+@keyframes lineFlash {
+  from {
+    background-color: color-mix(in oklab, var(--base0D) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.body :global(.line[data-line-flash="true"]) {
+  animation: lineFlash 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body :global(.line[data-line-flash="true"]) {
+    animation: none;
+  }
+}

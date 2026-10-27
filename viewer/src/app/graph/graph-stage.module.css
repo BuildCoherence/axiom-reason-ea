@@ -1,0 +1,127 @@
+/* The /graph stage's poster layer.
+ *
+ * ===========================================================================
+ * WHY THE VISIBILITY LIVES IN CSS AND NOT IN THE REACT TREE.
+ * ===========================================================================
+ *
+ * The poster is no longer shown on the happy path — it appears only when the
+ * canvas has not drawn within `GRAPH_POSTER_DELAY_MS`, and on every degraded
+ * rung. So the DEFAULT is hidden.
+ *
+ * TWO REASONS IT CANNOT BE A `setTimeout`, and the first one was measured
+ * rather than reasoned about:
+ *
+ *   1. THE TIMER WOULD START AT HYDRATION, WHICH IS AFTER MOST OF THE WAIT.
+ *      A first draft ran the delay from a `useEffect` in the shell. Traced in
+ *      the browser: the poster layer is in the document at 100ms, but React had
+ *      not hydrated at 800ms, and the canvas drew at ~1500ms — so a 400ms timer
+ *      starting at mount fired after the canvas was already live and the poster
+ *      never appeared at all. The window the poster exists to cover is exactly
+ *      the window before React is running.
+ *
+ *   2. The poster is the whole page for a visitor with no JavaScript, and
+ *      "hidden by default, revealed by React" leaves that visitor with an empty
+ *      rectangle. The obvious repair — render it visible and hide it on mount —
+ *      is worse: the server markup paints in the first document and React does
+ *      not hydrate until the main bundle has downloaded and parsed, so the
+ *      poster would flash on for most of a second and then vanish.
+ *
+ * A keyframe with a delay solves both. It starts when the element first renders
+ * — no script, no hydration — and `@media (scripting: none)` resolves the no-JS
+ * case before first paint. React then OVERRIDES the animation once it knows
+ * something the CSS cannot: `data-poster="hidden"` when the canvas is live,
+ * `data-poster="shown"` on a degraded rung. The attribute is absent in the
+ * server render and in the first client render, so there is no hydration
+ * mismatch and the animation owns the undecided window.
+ *
+ * (No inline `<noscript><style>`: React will happily instantiate a live
+ * `<style>` element inside a `<noscript>` when scripting IS enabled — the
+ * content of a `<noscript>` is inert only when it came from the HTML parser,
+ * not when React created it.)
+ *
+ * `scripting` support is Chrome 120 / Firefox 113 / Safari 17. Older browsers
+ * never match, so the poster stays on its animation — which is the same answer,
+ * just 400ms later. */
+
+/* KEEP IN LOCK STEP WITH `GRAPH_POSTER_DELAY_MS` in graph-arrival.ts, which is
+ * the same budget expressed for the ARRIVAL's benefit (a visitor who saw the
+ * poster must not then be shown the graph assembling). A unit case asserts the
+ * two agree, because nothing else would notice them drifting: the page would
+ * simply start playing an arrival over a poster that was already up.
+ *
+ * The delay is MEASURED — see that constant for the table of island first-frame
+ * times it was derived from, and for what the previous, guessed 400ms did.
+ *
+ * React does NOT re-run this delay on its own clock. It listens for this
+ * animation's `animationstart`, which is the only signal that agrees with what
+ * is actually on screen: the delay runs from when the ELEMENT rendered, and
+ * React's `performance.now()` runs from navigation start, so a second timer was
+ * ~200ms out of step with the picture it claimed to describe. */
+.posterLayer {
+  opacity: 0;
+  animation: graphPosterReveal 300ms ease 1600ms forwards;
+}
+
+@keyframes graphPosterReveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* React's half. `hidden` keeps the transition so the poster can fade OUT when a
+ * restored context or a successful retry takes over from it; `shown` is
+ * immediate because a degraded rung is not a moment to animate.
+ *
+ * There is deliberately NO rule for the HOLD (`GRAPH_POSTER_MIN_VISIBLE_MS`).
+ * Holding is the absence of `hidden`, not a third state: the reveal animation
+ * is `forwards`, so a poster that has finished revealing stays at opacity 1 on
+ * its own for as long as React declines to hide it. A `data-poster="held"` rule
+ * would have to re-state opacity 1 and would then fight the animation for any
+ * poster still mid-fade. */
+.posterLayer[data-poster="hidden"] {
+  animation: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.posterLayer[data-poster="shown"] {
+  animation: none;
+  opacity: 1;
+}
+
+/* The visitor asked for no motion; a fade is motion. The poster still appears
+ * on the same schedule — it just cuts. */
+@media (prefers-reduced-motion: reduce) {
+  .posterLayer {
+    animation-duration: 0s;
+  }
+
+  .posterLayer[data-poster="hidden"] {
+    transition: none;
+  }
+}
+
+/* NO SCRIPTING — the poster is the entire page, and nothing will ever arrive to
+ * reveal it or to draw over it. No delay either: there is nothing to wait for. */
+@media (scripting: none) {
+  .posterLayer {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* The controls legend advertises drag / scroll / click, none of which do
+ * anything without the canvas — and with no scripting there is no canvas. A
+ * hint for interactions the visitor cannot perform is worse than no hint. */
+.controlsHint {
+  display: flex;
+}
+
+@media (scripting: none) {
+  .controlsHint {
+    display: none;
+  }
+}

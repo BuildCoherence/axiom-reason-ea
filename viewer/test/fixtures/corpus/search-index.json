@@ -1,0 +1,132 @@
+{
+  "constants": [
+    {
+      "def_id": "e0000001",
+      "name": "everyone_kind",
+      "kind": "theorem",
+      "type_head": "Ethics.Kind",
+      "file_id": "b2c3d4e5",
+      "created_at": "2026-09-02T11:00:00Z",
+      "publisher": "bob",
+      "decl_byte_start": 32,
+      "signature_byte_end": 75,
+      "declaration_role": null
+    },
+    {
+      "def_id": "g0000001",
+      "name": "Ethics.golden_rule",
+      "kind": "axiom",
+      "type_head": "Ethics.Kind",
+      "file_id": "a1b2c3d4",
+      "created_at": "2026-09-01T10:00:00Z",
+      "publisher": "AliceSmith",
+      "decl_byte_start": 91,
+      "signature_byte_end": 133,
+      "declaration_role": null
+    },
+    {
+      "def_id": "k0000001",
+      "name": "Ethics.Kind",
+      "kind": "axiom",
+      "type_head": null,
+      "file_id": "a1b2c3d4",
+      "created_at": "2026-09-01T10:00:00Z",
+      "publisher": "AliceSmith",
+      "decl_byte_start": 61,
+      "signature_byte_end": 89,
+      "declaration_role": null
+    },
+    {
+      "def_id": "p0000001",
+      "name": "Ethics.Person",
+      "kind": "axiom",
+      "type_head": null,
+      "file_id": "a1b2c3d4",
+      "created_at": "2026-09-01T10:00:00Z",
+      "publisher": "AliceSmith",
+      "decl_byte_start": 40,
+      "signature_byte_end": 59,
+      "declaration_role": null
+    },
+    {
+      "def_id": "m0000001",
+      "name": "modus_ponens",
+      "kind": "theorem",
+      "type_head": null,
+      "file_id": "c3d4e5f6",
+      "created_at": "2026-09-03T12:00:00Z",
+      "publisher": null,
+      "decl_byte_start": 0,
+      "signature_byte_end": 62,
+      "declaration_role": null
+    },
+    {
+      "def_id": "n0000001",
+      "name": "square_sum",
+      "kind": "definition",
+      "type_head": "Nat",
+      "file_id": "d4e5f6g7",
+      "created_at": "2026-09-04T13:00:00Z",
+      "publisher": null,
+      "decl_byte_start": 0,
+      "signature_byte_end": 30,
+      "declaration_role": null
+    }
+  ],
+  "types": [
+    {
+      "type_head": "Ethics.Kind",
+      "searchable_name": "Kind",
+      "arity": 1,
+      "params": [
+        {
+          "index": 0,
+          "name": "a",
+          "type": "Ethics.Person",
+          "binder": "default"
+        }
+      ],
+      "file_id": "a1b2c3d4",
+      "def_id": "k0000001",
+      "kind": "axiom",
+      "publisher": "AliceSmith",
+      "created_at": "2026-09-01T10:00:00Z"
+    },
+    {
+      "type_head": "Ethics.Person",
+      "searchable_name": "Person",
+      "arity": 0,
+      "params": [],
+      "file_id": "a1b2c3d4",
+      "def_id": "p0000001",
+      "kind": "axiom",
+      "publisher": "AliceSmith",
+      "created_at": "2026-09-01T10:00:00Z"
+    },
+    {
+      "type_head": "Nat",
+      "searchable_name": "Nat",
+      "arity": 0,
+      "params": [],
+      "file_id": null,
+      "def_id": null,
+      "kind": null,
+      "publisher": null,
+      "created_at": null
+    }
+  ],
+  "users": [
+    {
+      "username": "AliceSmith",
+      "first_published_at": "2026-09-01T10:00:00Z"
+    },
+    {
+      "username": "bob",
+      "first_published_at": "2026-09-02T11:00:00Z"
+    },
+    {
+      "username": "carol",
+      "first_published_at": null
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+/* Shared identifier styling for author-view source slices (ShikiSlice).
+ *
+ * Shiki's TextMate grammar colors keywords/types/strings but renders bare
+ * identifiers in the default foreground (--base05), and the clickable
+ * `.ce-identifier` affordance is otherwise CSS-scoped to the file body's
+ * `.body`. So a source slice would render its identifiers as a flat string,
+ * unlike the semantically-colored TokenTreeView.
+ *
+ * This class is applied by `renderHast`'s `IdentifierSpan` ONLY in slice mode
+ * (the `colorIdentifiers` opt, set by `ShikiSlice` — never by the file body).
+ * In that mode renderHast also strips the inline `color:var(--base05)` from the
+ * decorated identifier's inner Shiki grammar spans, so the semantic color below
+ * applies by plain inheritance. One code path serves every ShikiSlice surface:
+ * the side panel, the theorem flowchart cards, and the theorem-page left
+ * signature panel.
+ *
+ * Model: color encodes WHAT a token is; underline encodes WHETHER it's
+ * clickable.
+ *  - Local bound variables (fvar — no qualified_name): ONE consistent binder
+ *    color (--ce-token-binder-defsite) at binder AND use sites, NOT clickable
+ *    so NOT underlined.
+ *  - References to defs (carry a qualified_name): muted use-site color
+ *    (--ce-token-binder-usesite); underlined + clickable only when a resolved
+ *    in-CE def_id is present.
+ *  - Notation atoms (colored by token-colors.css, not here): underlined only
+ *    when they carry a def_id. */
+
+/* References to defs (carry a qualified_name): muted use-site color. */
+.sliceIdentifier {
+  color: var(--ce-token-binder-usesite);
+}
+/* Local bound variables (fvar — no qualified_name): ONE consistent color at
+ * binder AND use sites (was a blue def-site / gray use-site split that made the
+ * same variable two colors). `!important` + specificity 3 (class + 2 attrs) so
+ * it beats the cross-surface `[data-kind="identifier"][data-binder-role="…"]
+ * { … !important }` rules in token-colors.css (specificity 2) that would
+ * otherwise repaint the use-site occurrences with the muted color. */
+.sliceIdentifier[data-kind="identifier"]:not([data-qualified-name]) {
+  color: var(--ce-token-binder-defsite) !important;
+}
+/* Affordance (underline + pointer) ONLY on truly-clickable spans — those with a
+ * resolved in-CE def_id. Local binders (no def_id) and stdlib-headed notation
+ * atoms get color but NO underline. */
+.sliceIdentifier[data-def-id] {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.sliceIdentifier[data-def-id]:hover {
+  text-decoration-color: var(--ring);
+}

@@ -1,0 +1,243 @@
+/* React-Flow CONTROLS + MINIMAP theming for the theorem flowchart.
+ *
+ * React Flow's stylesheet (`@xyflow/react/dist/style.css`) ships light defaults
+ * on `.react-flow` and a dark set on `.react-flow.dark` — the dark set only
+ * applies when `colorMode="dark"` is passed. This app does NOT use React Flow's
+ * `colorMode="system"`; it toggles light/dark via a `data-mode` attribute on the
+ * <html> ancestor, so we re-theme the components OURSELVES by overriding React
+ * Flow's component-scoped CSS variables (`--xy-controls-*`, `--xy-minimap-*`),
+ * keyed off `[data-mode]`, so they track the app's existing toggle. We set the
+ * NON-`-default` variant of each var (e.g. `--xy-minimap-background-color`),
+ * which React Flow reads in preference to its built-in `-default`.
+ *
+ * Everything is base16 (var(--base00)..var(--base0F)) so it tracks data-mode and
+ * the community-palette swap — NO hardcoded hex
+ * (the internal nextjs-styling-and-component-stack doc).
+ *
+ * Scoped under our local `.shell` wrapper because a CSS-module rule must contain
+ * a local class (a bare `:global(...)` rule is rejected as "not pure"). The
+ * `[data-mode]` selectors are ancestors of `.shell`, so we read the mode from
+ * up-tree and apply the vars on the React Flow elements within.
+ */
+
+.shell {
+  width: 100%;
+  height: 100%;
+}
+
+/* SETTLE EASE. The commit moves each node from its seed-grid cell to its solved
+ * position in one slide; the shell reads this duration back off a live node to
+ * time its `data-layout="settled"` flip, so the two can never disagree. Reduced
+ * motion renders the final state directly (and drops the shell's timer to 0ms).
+ * The @visual runs' blanket `transition: none` does the same. */
+.shell :global(.react-flow__node) {
+  transition: transform 260ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell :global(.react-flow__node) {
+    transition: none;
+  }
+}
+
+.fadeBackground :global(.react-flow__background) {
+  mask-image: radial-gradient(
+    ellipse at center,
+    black 58%,
+    rgb(0 0 0 / 0.78) 72%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    black 58%,
+    rgb(0 0 0 / 0.78) 72%,
+    transparent 100%
+  );
+}
+
+/* Embedded-in-feed mode: let the browser handle one-finger VERTICAL panning
+ * (i.e. scroll the surrounding feed) on the React Flow pane. React Flow sets
+ * `touch-action: none` on the pane to capture all gestures; `pan-y` overrides
+ * that so a vertical finger drag scrolls the feed. On touch the tap-to-activate
+ * shield (theorem-flowchart-rf.tsx) sits on top while inactive and owns the
+ * gesture gating — pan/zoom only after a tap; this rule is the fallback for the
+ * brief windows the overlay isn't covering. */
+.embeddedScroll :global(.react-flow__pane) {
+  touch-action: pan-y !important;
+}
+
+/* Positioned so the zoom hint + tap shield (absolute) anchor to the graph box.
+ * Embedded-only, so the theorem-page mount is untouched. */
+.embeddedScroll {
+  position: relative;
+}
+
+/* Tap-to-activate shield for the embedded TOUCH preview (theorem-flowchart-rf.tsx).
+ * Transparent so the graph shows through; `touch-action: pan-y` lets a one-finger
+ * vertical swipe scroll the feed while inactive, and a tap activates pan/zoom.
+ * Above the canvas + controls so the first tap always activates. */
+.tapShield {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.5rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tapShieldLabel {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--base05);
+  background-color: color-mix(in oklch, var(--base00) 82%, transparent);
+  border: 1px solid var(--base02);
+  box-shadow: 0 2px 10px color-mix(in oklch, var(--base05) 12%, transparent);
+  pointer-events: none;
+}
+
+/* Transient "how to zoom" hint (embedded mode). Centered pill, faded in for a
+ * beat when the user plain-scrolls over the graph, then out. Inert overlay. */
+.zoomHint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--base05);
+  background-color: color-mix(in oklch, var(--base00) 82%, transparent);
+  border: 1px solid var(--base02);
+  box-shadow: 0 2px 10px color-mix(in oklch, var(--base05) 12%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.zoomHintVisible {
+  opacity: 1;
+}
+
+/* ---- Controls panel (design change #2) -------------------------------------
+ * A clean, self-contained control card: a compact SINGLE COLUMN of square
+ * buttons — React Flow's default zoom-in / zoom-out / fit-view plus our MiniMap
+ * toggle as a fourth button at the bottom of the stack. (The interactivity lock
+ * is dropped — the diagram is a non-draggable document — and the pan-arrow D-pad
+ * was removed; drag-to-pan + the toggleable minimap cover navigation.) We DROP
+ * React Flow's default per-button look (full-width stretched chips with bottom
+ * dividers) in favor of evenly-gapped rounded squares. The
+ * `react-flow__controls-button` selector wins via the local `.shell` scope. */
+.shell :global(.react-flow__controls) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--base02);
+  border-radius: 9px;
+  background-color: var(--base00);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--base05) 10%, transparent),
+    0 4px 12px color-mix(in oklch, var(--base05) 8%, transparent);
+}
+
+/* One consistent rounded 24px square per button (more compact than before). */
+.shell :global(.react-flow__controls-button) {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--base05);
+}
+.shell :global(.react-flow__controls-button):hover {
+  background-color: color-mix(in oklch, var(--base05) 9%, transparent);
+}
+.shell :global(.react-flow__controls-button) svg {
+  width: 13px;
+  height: 13px;
+  max-width: 13px;
+  max-height: 13px;
+  fill: currentColor;
+}
+.shell :global(.react-flow__controls-button):focus-visible {
+  outline: 2px solid var(--base0D);
+  outline-offset: -1px;
+}
+
+/* Active (pressed) state for the MiniMap toggle — tinted so the on-state reads
+ * at a glance. Scoped under .shell + the global button class so it beats the
+ * base button rule's transparent fill. */
+.shell :global(.react-flow__controls-button).controlActive {
+  background-color: color-mix(in oklch, var(--base0D) 18%, transparent);
+  color: var(--base0D);
+}
+.shell :global(.react-flow__controls-button).controlActive:hover {
+  background-color: color-mix(in oklch, var(--base0D) 26%, transparent);
+}
+
+.shell :global(.react-flow__minimap) {
+  border: 1px solid var(--base02);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--base05) 10%, transparent),
+    0 2px 8px color-mix(in oklch, var(--base05) 8%, transparent);
+}
+
+/* ---- Mode-keyed React Flow component variables -----------------------------
+ * Both blocks set the same vars from base16 tokens — the tokens themselves flip
+ * with data-mode, so the values differ per mode automatically; we still key on
+ * [data-mode] so the rules win over React Flow's `.react-flow` light defaults
+ * even in dark mode (where `.react-flow.dark` is NOT applied). */
+[data-mode="light"] .shell,
+[data-mode="dark"] .shell {
+  /* Controls buttons. We style .react-flow__controls-button directly above (one
+   * consistent rounded square, transparent fill, base16 hover), so these React
+   * Flow component vars only need to neutralize its stock chip border + shadow. */
+  --xy-controls-button-background-color: transparent;
+  --xy-controls-button-background-color-hover: color-mix(
+    in oklch,
+    var(--base05) 9%,
+    transparent
+  );
+  --xy-controls-button-color: var(--base05);
+  --xy-controls-button-color-hover: var(--base05);
+  --xy-controls-button-border-color: transparent;
+  --xy-controls-box-shadow: none;
+
+  /* MiniMap surface + mask. The mask dims the OFF-screen area; the clear
+   * window is the current viewport. A translucent base05 wash reads in both
+   * modes (darkens light, lightens-relative dark) without hiding node tints. */
+  --xy-minimap-background-color: color-mix(
+    in oklch,
+    var(--base01) 85%,
+    var(--base00)
+  );
+  --xy-minimap-mask-background-color: color-mix(
+    in oklch,
+    var(--base05) 22%,
+    transparent
+  );
+  --xy-minimap-mask-stroke-color: color-mix(
+    in oklch,
+    var(--base05) 30%,
+    transparent
+  );
+  --xy-minimap-mask-stroke-width: 1;
+  /* node fill/stroke come from the per-node nodeColor / nodeStrokeColor props. */
+}

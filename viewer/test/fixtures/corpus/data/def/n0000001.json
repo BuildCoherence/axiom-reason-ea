@@ -1,0 +1,98 @@
+{
+  "def": {
+    "decl": {
+      "def_id": "n0000001",
+      "qualified_name": "square_sum",
+      "local_name": "square_sum",
+      "kind": "def",
+      "display_kind": "def",
+      "file_id": "d4e5f6g7",
+      "publisher": {
+        "username": "unattributed (account removed)"
+      },
+      "byte_range": {
+        "start": 0,
+        "end": 43
+      },
+      "decl_sig_byte_range": {
+        "start": 0,
+        "end": 23
+      },
+      "decl_val_byte_range": {
+        "start": 23,
+        "end": 43
+      },
+      "type_tokens": {
+        "author": null,
+        "empty": {
+          "node": "append",
+          "children": [
+            {
+              "node": "tag",
+              "tag": {
+                "kind": "type",
+                "text": "Nat",
+                "qualified_name": null,
+                "def_id": null,
+                "token_id": "t17",
+                "hover_kind": null,
+                "binder_role": null,
+                "inlined_type_summary": null
+              },
+              "child": {
+                "node": "text",
+                "text": "Nat"
+              }
+            },
+            {
+              "node": "text",
+              "text": " → "
+            },
+            {
+              "node": "tag",
+              "tag": {
+                "kind": "type",
+                "text": "Nat",
+                "qualified_name": null,
+                "def_id": null,
+                "token_id": "t18",
+                "hover_kind": null,
+                "binder_role": null,
+                "inlined_type_summary": null
+              },
+              "child": {
+                "node": "text",
+                "text": "Nat"
+              }
+            }
+          ]
+        }
+      },
+      "value_tokens": null,
+      "source_tokens": [
+        {
+          "byte_start": 4,
+          "byte_end": 14,
+          "kind": "identifier",
+          "text": "square_sum",
+          "qualified_name": "square_sum",
+          "def_id": "n0000001",
+          "token_id": "s19",
+          "hover_kind": "const",
+          "binder_role": null,
+          "inlined_type_summary": null
+        }
+      ]
+    },
+    "source_lines": {
+      "start": 1,
+      "end": 1
+    },
+    "created_at": "2026-09-04T13:00:00Z",
+    "file_content": "def square_sum (n : Nat) : Nat := n * n + n\n",
+    "conclusion_prop": null,
+    "members": [],
+    "theorem_statement": null
+  },
+  "referenced_by": []
+}

@@ -1,0 +1,478 @@
+/* Workbench status bar — the IDE-style strip pinned to the bottom edge of
+ * any workbench-shaped route (file viewer, profile, future surfaces). Replaces
+ * the marketing footer on these routes (the workbench wrapper visually covers
+ * the chrome <Footer/> from below — VS Code Web / vscode.dev / github.dev /
+ * Sourcegraph drop the marketing footer on code routes and surface a thin
+ * status bar inside the workbench instead). The CSS module is shared; each
+ * route owns its own `.tsx` that renders route-appropriate left content
+ * (file id + publisher + decl count on file; profile username + axiom +
+ * theorem counts on profile) and the same right-side chrome.
+ *
+ * Lives as the LAST child of the workbench wrapper, so the workbench's
+ * flex-grow content column ends naturally at the status bar's top edge.
+ *
+ * Visuals: low-key card background, top border for separation, monospace
+ * affordances mirroring the file header's chip style. Height is roughly 2rem
+ * (height: 2rem floors the row even when content is shorter — matches the
+ * VS Code workbench statusbar pattern). */
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 1rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--base02);
+  background-color: var(--base01);
+  font-size: 0.8rem;
+  color: var(--base04);
+  /* Reading-column constraint is handled inside `.mainColumn` for the file
+   * body; the status bar deliberately spans the whole workbench width — that
+   * is the VS Code statusbar shape. */
+}
+
+/* Mobile (< md / 768px): touch targets need more headroom for ≥44px
+ * controls (WCAG 2.5.5), so the height is dropped and the row auto-sizes
+ * to its tallest child. The workbench route-segment layout (see
+ * f/[file_id]/layout.tsx) pins the bar to the bottom edge naturally on
+ * every viewport, so no `position: sticky` override is needed. Padding
+ * stays light so the bar still reads as a "thin strip" rather than a
+ * footer.
+ *
+ * `padding-bottom: max(0.25rem, env(safe-area-inset-bottom))` clears
+ * the iOS home indicator on notched iPhones; the root viewport meta
+ * (src/app/layout.tsx) carries `viewport-fit=cover` so the safe-area
+ * insets populate. `max(...)` preserves the baseline 0.25rem padding
+ * on devices without a home indicator (insets resolve to 0). */
+@media (max-width: 767px) {
+  .statusBar {
+    height: auto;
+    min-height: 2.75rem;
+    padding: 0.25rem 0.75rem;
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    gap: 0.5rem;
+  }
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  /* Long base50 ids must not blow out the row; ellipsize the chip's container
+   * rather than wrap the strip onto a second line. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+/* Constrain shadcn `Button`s rendered inside the status bar (the
+ * `<ThemeToggle/>` uses shadcn's `Button size="icon"`, which is
+ * 2.25rem square — taller than the 2rem status-bar row, so its
+ * hover background overflows the bar's top edge and breaks the
+ * visual line). Matches the `ShortcutsHelpButton` size already
+ * declared via `.shortcutsButton` (1.25rem) so both icon buttons
+ * read as uniform-sized status-bar affordances. shadcn stamps
+ * `data-slot="button"` on every Button — see
+ * `axiom/web/src/components/ui/button.tsx`. */
+.statusBar [data-slot="button"] {
+  height: 1.5rem;
+  width: 1.5rem;
+  padding: 0;
+}
+
+/* The shadcn icon buttons inside the status bar render lucide icons
+ * sized via Tailwind utilities (`h-4 w-4` ≈ 1rem). With the
+ * constrained square button above, that ratio is fine — the icon
+ * still has a comfortable padding margin. Constrain the SVG
+ * defensively so a future icon swap can't blow out the button. */
+.statusBar [data-slot="button"] svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* Mobile touch targets — WCAG 2.5.5 "Target Size (Enhanced)" expects
+ * ≥44×44px for pointer inputs that aren't text-flow links. On a touch
+ * viewport the 1.5rem (24px) status-bar buttons are too small to hit
+ * reliably; bump them to 2.75rem (44px) and the icons to ~1.25rem so
+ * the affordance reads as a tappable button rather than a decorative
+ * glyph. Both the shadcn `[data-slot="button"]` Buttons (theme toggle,
+ * fullscreen) and the bare-button affordances (shortcuts, search) pick
+ * up the size override. */
+@media (max-width: 767px) {
+  .statusBar [data-slot="button"] {
+    height: 2.75rem;
+    width: 2.75rem;
+  }
+  .statusBar [data-slot="button"] svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .shortcutsButton,
+  .paletteButton {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .shortcutsIcon,
+  .paletteIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* Monospace file-id chip — mirrors the file header's chip but compact for
+ * the status bar's smaller row. */
+.fileIdChip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background-color: var(--base00);
+  border: 1px solid var(--base02);
+  color: var(--base05);
+  white-space: nowrap;
+  /* Truncate exotic-long base50s with an ellipsis rather than expanding the
+   * row vertically. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
+}
+
+.publisherLine {
+  /* Single-line meta — wraps inside `.left`, which already nowraps. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The publisher attribution is reachable in the file HEADER (above the
+ * source body) — duplicating it in the status bar at narrow widths just
+ * eats space that the file-id chip + decl-count chip use better. Hidden
+ * on mobile; the desktop bar keeps it (room is available, and IDE-style
+ * persistent attribution matches VS Code Web). */
+@media (max-width: 767px) {
+  .publisherLine {
+    display: none;
+  }
+}
+
+/* Decl count chip — mirrors `.fileIdChip` so the two read as paired pieces
+ * of file metadata. */
+.declCountChip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background-color: var(--base00);
+  border: 1px solid var(--base02);
+  color: var(--base05);
+  white-space: nowrap;
+}
+
+/* "Press / to search" hint — quiet, small, lives alongside the publisher
+ * line. The `<kbd>` chip mirrors the keyboard-shortcuts dialog's chip styling
+ * (`shortcuts-help.module.css`) so the affordance is consistent across the
+ * page.
+ *
+ * Hidden on mobile: a touch viewport has no physical `/` key, so the chip
+ * advertises a shortcut the visitor can't use. The mobile branch surfaces an
+ * explicit `.paletteButton` (Search icon) in the right block instead. */
+.searchHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  color: var(--base04);
+}
+
+@media (max-width: 767px) {
+  .searchHint {
+    display: none;
+  }
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--base02);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background-color: var(--base00);
+  color: var(--base05);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+/* Right-side legal notice. Convention from VS Code Web statusbar / docs.rs /
+ * Sourcegraph's chrome-light footer — copyright + reachable Terms/Privacy
+ * links, styled muted so they read as workbench chrome not content.
+ *
+ * Hidden on mobile: the right block already carries Theme / Search /
+ * Fullscreen / Shortcuts affordances, and the legal text + © year would
+ * push the row onto a second line at narrow widths. The marketing footer
+ * still carries reachable Terms / Privacy on every other route, and a
+ * deep-linked file viewer is one tap from `/` (the brand link in the nav)
+ * where the footer is reachable — DMCA / "innocent infringer" reach
+ * survives without the per-row text on the file route. */
+.copyright {
+  color: var(--base04);
+  white-space: nowrap;
+}
+
+.legalLink {
+  color: var(--base04);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.legalLink:hover {
+  color: var(--base05);
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .copyright,
+  .legalLink {
+    display: none;
+  }
+}
+
+/* Keyboard-shortcuts icon button — small, square, ambient at rest;
+ * tinted on hover so the affordance is visible the moment the visitor
+ * reaches for it. Lives in the right block before the legal links.
+ *
+ * Hidden on mobile: every shortcut in the help dialog (`/`, `j`, `k`, `?`,
+ * `Esc`, `f`) requires a physical keyboard. The mobile branch keeps the
+ * Search button (which surfaces the palette directly) and the focus-mode
+ * button (which works via touch tap) — the shortcuts help dialog itself is
+ * desktop-only chrome. */
+.shortcutsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--base04);
+  cursor: pointer;
+  transition:
+    background-color 80ms ease,
+    color 80ms ease;
+}
+
+.shortcutsButton:hover {
+  background-color: var(--base02);
+  color: var(--base05);
+}
+
+.shortcutsButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.shortcutsIcon {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 767px) {
+  .shortcutsButton {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shortcutsButton {
+    transition: none;
+  }
+}
+
+/* Focus-mode toggle — same icon-button shape as `.shortcutsButton`, but NOT
+ * hidden on mobile: the toggle works via tap (unlike the keyboard-shortcuts
+ * dialog whose every entry needs a physical keyboard), and a touch viewport
+ * has no `f` key, so the button is the ONLY focus-mode affordance there.
+ * `aria-pressed="true"` keeps the hover treatment applied so the on state
+ * reads at a glance. */
+.focusModeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--base04);
+  cursor: pointer;
+  transition:
+    background-color 80ms ease,
+    color 80ms ease;
+}
+
+.focusModeButton:hover,
+.focusModeButton[aria-pressed="true"] {
+  background-color: var(--base02);
+  color: var(--base05);
+}
+
+.focusModeButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.focusModeIcon {
+  width: 14px;
+  height: 14px;
+}
+
+/* 44px touch target on mobile (WCAG 2.5.5) — same override the other
+ * status-bar icon buttons get. */
+@media (max-width: 767px) {
+  .focusModeButton {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .focusModeIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focusModeButton {
+    transition: none;
+  }
+}
+
+/* Search / command-palette affordance — mirrors `.shortcutsButton`'s
+ * ambient / hover / focus treatment so the two read as a paired pair of
+ * icon affordances in the right block. Mobile-only: desktop uses the `/`
+ * hotkey + the "Press / to search" hint in the left block; a touch viewport
+ * has neither, so this button is the only path to the "Jump to declaration"
+ * palette. Hidden via `display: none` at ≥ md so the hotkey + hint stay
+ * canonical on desktop. */
+.paletteButton {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--base04);
+  cursor: pointer;
+  transition:
+    background-color 80ms ease,
+    color 80ms ease;
+}
+
+.paletteButton:hover {
+  background-color: var(--base02);
+  color: var(--base05);
+}
+
+.paletteButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.paletteIcon {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 767px) {
+  .paletteButton {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paletteButton {
+    transition: none;
+  }
+}
+
+/* Page view toggle slot (Theorem Page) — the author/empty toggle, moved into
+ * the footer by the redesign, sits in the bar's center. The bar's broad
+ * `.statusBar [data-slot="button"]` rule sizes icon buttons to a 1.5rem square;
+ * the toggle's buttons carry TEXT, so these later rules (equal specificity, so
+ * they win on source order — including over the mobile override above) restore
+ * their natural width and a compact height. */
+.viewToggleSlot {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.viewToggleSlot [data-slot="button"] {
+  width: auto;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.viewToggleSlot [data-slot="button"] svg {
+  width: auto;
+  height: auto;
+}
+
+/* Mobile: the view toggle STAYS visible (the page-view choice still applies to
+ * the stacked layout) — instead, the theorem name + premise-count chips on the
+ * left are suppressed (`.statusLeftMobileHide` below) to make room. The toggle
+ * buttons get a touch-friendlier height here. */
+/* Tablet + mobile (< lg / 1024px): suppress the theorem name + premise-count
+ * chips so the footer stays a single row. At iPad widths (~810px) the chips +
+ * view toggle + copyright/legal links don't all fit and the toggle would wrap;
+ * the chips return at lg where the full IDE-style status row has room. */
+@media (max-width: 1023px) {
+  .statusLeftMobileHide {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .viewToggleSlot [data-slot="button"] {
+    height: 1.875rem;
+    padding: 0 0.6rem;
+  }
+
+  .statusBar:has(.viewToggleSlot) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    column-gap: 0.5rem;
+  }
+
+  .statusBar:has(.viewToggleSlot) .viewToggleSlot {
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  .statusBar:has(.viewToggleSlot) .right {
+    grid-column: 3;
+    justify-self: end;
+  }
+}

@@ -1,0 +1,42 @@
+/* CE file page header chrome. Uses the Base16 theme vars so it tracks
+ * data-mode automatically. Spacing/typography match the public-page chrome. */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Monospace file-id chip — the page's primary identifier. */
+.fileIdChip {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background-color: var(--base01);
+  border: 1px solid var(--base02);
+  color: var(--base05);
+  /* Long base50 ids must not blow out the line on narrow viewports. */
+  word-break: break-all;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.metaLine {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--base04);
+}
+
+.forkedFromId {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  word-break: break-all;
+}

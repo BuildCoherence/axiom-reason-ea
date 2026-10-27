@@ -1,0 +1,81 @@
+/* Offset/limit pager. Tokens via the shared Base16 slots (globals.css). */
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.info {
+  font-family:
+    "JuliaMono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  color: var(--base04);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--base02);
+  background: var(--base00);
+  border-radius: 7px;
+  color: var(--base05);
+  font-size: 12.5px;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  font-family:
+    "JuliaMono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--base01);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cur {
+  background: var(--base0D);
+  color: var(--base00);
+  border-color: var(--base0D);
+}
+
+.cur:hover {
+  background: var(--base0D);
+}
+
+.gap {
+  min-width: 18px;
+  text-align: center;
+  color: var(--base04);
+  font-family:
+    "JuliaMono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-size: 12.5px;
+}
+
+.rows {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--base02);
+  background: var(--base00);
+  color: var(--base04);
+  font-size: 12.5px;
+}
+
+.rows b {
+  color: var(--base05);
+  font-weight: 600;
+}

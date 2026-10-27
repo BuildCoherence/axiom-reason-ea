@@ -1,0 +1,881 @@
+/* Side panel for declaration inspection — see side-panel.tsx for the
+ * structure rationale. Uses the Base16 vars so the panel tracks the
+ * active theme automatically.
+ *
+ * RESPONSIVE CHROME — two viewport shapes, two distinct mounts:
+ *
+ *   Desktop & tablet (≥ md / 768px): DOCKED IDE-style pane that lives
+ *   inside the host shell's `ResizablePanel` column (see lean-ui-shell.tsx
+ *   and § "Side panel as a docked IDE-style pane" in the design doc). The
+ *   shell owns the column's outer width / position; this stylesheet only
+ *   styles the pane's internal header + body. No Radix Dialog, no overlay,
+ *   no fixed positioning, no width-reservation shim — the shell's
+ *   ResizablePanel is the source of truth for pane width and the resize
+ *   handle persists the user's choice across reloads + host pages.
+ *
+ *   Mobile (< 768px): BOTTOM sheet that slides up from the bottom edge.
+ *   Capped at ~85vh so the top of the page stays visible (the visitor
+ *   keeps context). The Sheet's built-in modal / overlay / focus trap /
+ *   click-outside-to-close behaviours all ride through unchanged from v1.
+ *
+ * The component picks ONE branch per render via the shared `useIsMobile`
+ * hook and renders either the docked-pane div tree (desktop) or the
+ * SheetContent (mobile). The historical "always-Sheet, swap `side` from
+ * 'bottom' to 'right'" arrangement (and the `.sheetRight` class + the
+ * width-reservation shim) is gone with Phase 3 of the lean-UI amendment.
+ */
+
+/* ---- Bottom (mobile, < 768px) --------------------------------------- */
+
+.sheetBottom {
+  /* Bottom-sheet height capped at ~85vh so the visitor can still see the
+   * top of the page and keep their bearings. The Sheet itself has
+   * `overflow` content that scrolls inside .body below. */
+  max-height: 85vh;
+  max-height: 85dvh;
+  /* Round the top corners so the sheet reads as a distinct surface
+   * sliding up from the bottom. */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* ---- Docked pane (desktop / tablet, ≥ 768px) ----------------------- */
+
+/* The docked pane fills its host shell column (a `ResizablePanel`) and
+ * lays out as a column: header strip + scrollable body. The pane's outer
+ * height comes from the workbench wrapper on the host's `page.tsx`
+ * (`fixed inset-x-0 bottom-0 top-[var(--ce-nav-height)] overflow-hidden`)
+ * that constrains the page to the viewport; each pane scrolls inside its
+ * own column (see lean-ui-shell.tsx for the VS Code Web workbench
+ * precedent). */
+.dockedPane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--base00);
+  border-left: 1px solid var(--base02);
+  /* No slide-in animation. Two earlier attempts (commits 6a7ed9ef + 70a4b833)
+   * tried to mimic the Radix Sheet's enter motion the desktop docked pane
+   * lost when Phase 3 swapped Sheet for a ResizablePanel column. Neither
+   * looked like the Sheet's entry because the structural shape is
+   * different: Sheet was a `position: fixed; right: 0` overlay that the
+   * lib slid in via translateX(100%) → translateX(0). The ResizablePanel
+   * allocates its column width INSTANTLY on mount (the maintainer states
+   * this is intentional and that the lib won't support open/close
+   * animations — see https://github.com/bvaughn/react-resizable-panels/
+   * discussions/376). Animating the inner `.dockedPane` content can't
+   * paper over the column's instant appearance. Accepted as a structural
+   * limitation. */
+}
+
+/* Docked header strip — flex row carrying the drill-down nav on the
+ * left and the (optional) View-in-file affordance + close on the
+ * right. The visible title was dropped because the Identity section
+ * directly below already renders the decl's `local_name` as a
+ * heading; `.dockedTrailing` below pushes the right-side group to the
+ * row's trailing edge. */
+.dockedHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--base02);
+}
+
+/* The trailing GROUP — `headerExtras` then Close, in that order, pushed to the
+ * row's far edge as one unit. It replaces a `margin-left: auto` on the Close
+ * button itself, which could only ever push the button it sat on: with Close
+ * first in the group and `headerExtras` after it, "View in file" ended up to
+ * the RIGHT of the ✕. A wrapper is what lets the two be ordered independently
+ * of which one carries the push. */
+.dockedTrailing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* ---- Shared sheet rules -------------------------------------------- */
+
+.sheet {
+  /* The sheet content is a column: header + scrollable body. Sheet's
+   * default `flex flex-col` already sets this; we just guard against any
+   * future override. */
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetHeader {
+  border-bottom: 1px solid var(--base02);
+  padding-right: 3rem; /* Reserve space for the Sheet's built-in X close button. */
+}
+
+/* In-panel drill-down navigation strip. A short row of icon buttons that
+ * walk the host hook's in-memory stack (NOT browser history). Rendered
+ * inside the SheetHeader before the (sr-only) title so the chrome reads
+ * left-to-right: nav strip → "View in file" affordance. */
+.navStrip {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-self: flex-start;
+}
+
+.viewInFileButton {
+  /* THE SHEET BRANCH ONLY. `SheetHeader` is a flex COLUMN, so this puts the
+   * button below the nav strip on its own row, out of the X-button's margin. */
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+/* ...AND THE CORRECTION FOR THE ROW BRANCH.
+ *
+ * `.dockedHeader` is a flex ROW with `align-items: center`, and the two rules
+ * above fight it: `align-self: flex-start` overrides the centring and the
+ * `margin-top` then pushes the button half a step further down, so "View in
+ * file" sat visibly lower than the Back / Forward / Close controls beside it.
+ * Invisible for as long as the docked header was the only row branch and the
+ * button was its lone right-hand item; obvious the moment /graph's drawer
+ * started rendering the same row on a narrow viewport.
+ *
+ * Scoped rather than fixed at source: the column branch needs the originals,
+ * and the two branches genuinely want different answers. */
+.dockedHeader .viewInFileButton {
+  align-self: center;
+  margin-top: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Body + sections ----------------------------------------------- */
+
+.body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  /* Thin, theme-aware scrollbar — matches the file body's idiom. See
+   * ce-file-body.module.css `.body` for the rationale + the WebKit
+   * vendor fallback that goes with `scrollbar-width: thin`. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--base03) transparent;
+}
+
+.body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background-color: var(--base03);
+  border-radius: 6px;
+  border: 2px solid var(--base00);
+}
+
+.body::-webkit-scrollbar-thumb:hover {
+  background-color: var(--base04);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  /* Sentence/title-case (the strings are already title-case: "Adoption",
+   * "Referenced by", …) in a brighter foreground — matches the
+   * covered-proofs header the user signed off on. `-0.01em` is the tight
+   * tracking; the `color-mix` is exactly what the panel's `text-foreground/90`
+   * (Tailwind v4, `@theme inline` ⇒ foreground = `--base05`) compiles to. */
+  letter-spacing: -0.01em;
+  color: color-mix(in oklab, var(--base05) 90%, transparent);
+  margin: 0;
+}
+
+/* ---- Identity ------------------------------------------------------ */
+
+.localName {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--base05);
+  word-break: break-all;
+}
+
+/* Proposition-panel heading — the parallel to the def panel's `.localName`
+ * but NON-monospace: a proposition has no Lean identifier to render as code,
+ * so the panel's title reads as a sans heading. Sized just above the def
+ * panel's mono name so it still reads as the panel's primary heading, weight
+ * 600 + tight tracking + full foreground to match the section-title look. */
+.propTitle {
+  font-family: var(--font-sans, inherit);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  /* Full foreground (`--base05` = the panel's `text-foreground`). */
+  color: var(--base05);
+  margin: 0;
+}
+
+.qualifiedName {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--base04);
+  word-break: break-all;
+}
+
+.attribution {
+  font-size: 0.85rem;
+  margin: 0;
+  color: var(--base04);
+}
+
+.fileChip {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background-color: var(--base01);
+  border: 1px solid var(--base02);
+  color: var(--base05);
+  word-break: break-all;
+}
+
+/* "View theorem page" link in the Identity section (theorem-kind decls). */
+.theoremLink {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+
+/* ---- Outline ("In this file") -------------------------------------- */
+
+/* Flat list of every decl in the panel-anchored file. Each row is a button
+ * that rebases the panel onto the picked decl (and scrolls the source
+ * body's matching [data-decl-wrapper] into view via the host). The
+ * currently-anchored decl carries `aria-current="true"`; the
+ * `[aria-current]` rule styles it distinctly so the visitor sees their
+ * place in the file. */
+
+.outlineList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  /* Cap the outline's height so a long file (~50+ decls) doesn't push the
+   * lower sections off the panel's first viewport — the outline scrolls
+   * inside this box, the other sections scroll inside `.body`. */
+  max-height: 12rem;
+  overflow-y: auto;
+  border: 1px solid var(--base02);
+  border-radius: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--base03) transparent;
+}
+
+.outlineRow {
+  display: flex;
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--base05);
+  font: inherit;
+}
+
+.outlineRow:hover {
+  background-color: color-mix(in oklab, var(--base02) 50%, transparent);
+}
+
+.outlineRow:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.outlineRow[aria-current="true"] {
+  background-color: color-mix(in oklab, var(--base0D) 18%, transparent);
+  box-shadow: inset 2px 0 0 0 var(--base0D);
+}
+
+/* The outline only tracks SELECTION — not body-scroll. The previous
+ * scroll-sync followed the topmost-visible decl in the source body and
+ * (briefly) also tinted a different row; both have been removed. The outline
+ * row that ever gets a highlight is the anchored one (`aria-current` above),
+ * and the only `scrollIntoView` call fires when `currentDefId` changes
+ * (`OutlineSection` in side-panel.tsx). */
+
+.outlineLocalName {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.memberList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--base02);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  color: var(--base05);
+}
+
+.memberRow + .memberRow {
+  border-top: 1px solid color-mix(in oklab, var(--base02) 65%, transparent);
+}
+
+.memberName {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ce-token-binder-defsite);
+  text-align: left;
+}
+
+button.memberName {
+  cursor: pointer;
+  /* Persistent affordance so "clickable" is not signalled by colour alone
+   * (WCAG 1.4.1). A subtle dotted underline reads as "interactive" at rest;
+   * hover promotes it to a solid underline. Kept low-contrast (the dotted
+   * style + thin line) so it doesn't compete with the member-name colour.
+   * Mirrors the panel's TokenTreeView `.clickable` rest state. */
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+button.memberName:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ring);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.memberKind {
+  flex: none;
+  border-radius: 3px;
+  background-color: var(--base02);
+  color: var(--base04);
+  padding: 0.1rem 0.32rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---- View toggle --------------------------------------------------- */
+
+.viewToggle {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+/* ---- Code surfaces (Type, Value) ----------------------------------- */
+
+.codeSurface {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  background-color: var(--base01);
+  border: 1px solid var(--base02);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Shiki-output reset for the author-view source slice.
+ *
+ * `ShikiSlice` returns Shiki's own hast, whose ROOT is a block-level
+ * `<pre class="shiki">` (a themed code block in its own right). `.codeSurface`
+ * is now a <div> (was a <pre> — see side-panel.tsx), so there is no longer an
+ * invalid <pre>-in-<pre> nesting; but the inner `pre.shiki` still ships the UA
+ * <pre> margin and Shiki's own background/padding, which would double the
+ * surface chrome and shift the box on each highlight landing. We neutralise it
+ * the same way the file body does (ce-file-body.module.css's
+ * `.body :global(pre.shiki)` reset): zero the margin/padding and drop the
+ * background so `.codeSurface` is the single source of the box's chrome.
+ *
+ * `display: inline` (not the file body's block) so the highlighted slice flows
+ * inline within the surface exactly where the raw-text fallback
+ * (`byteSlice(...)` plain text) sat — the loading→loaded transition then does
+ * not reflow from block to inline. The `:global` escape hatch is required
+ * because `shiki` is a Shiki-authored class carried through the `renderHast`
+ * React walk, not a CSS-Module-local name (same rationale as the file body). */
+.codeSurface :global(pre.shiki) {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  /* The slice is short, single-statement source; let it wrap with the surface
+   * rather than introduce its own horizontal scroll inside the panel. */
+  white-space: inherit;
+}
+
+.codeSurface :global(pre.shiki code) {
+  /* Shiki wraps the tokens in a <code>; keep it inline so it does not force a
+   * block break inside the inline `pre.shiki` above. */
+  display: inline;
+}
+
+/* ---- Value collapsible --------------------------------------------- */
+
+.collapseTrigger {
+  /* Compact button so the section header reads as a strip, not a
+   * full-height bar. */
+  height: auto;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+
+/* When Radix marks the trigger as open, rotate the chevron — the
+ * trigger's parent Collapsible.Root sets data-state on the trigger and
+ * the content. */
+.collapseTrigger[data-state="open"] .chevron {
+  transform: rotate(90deg);
+}
+
+/* The collapse label renders its accessible text from React state
+ * ("Expand" / "Collapse") — see side-panel.tsx CollapsibleValue. We
+ * deliberately do NOT use ::before generated content for the label
+ * because screen-reader exposure of generated content is inconsistent
+ * across the AT matrix. */
+.collapseLabel {
+  font-size: 0.8rem;
+}
+
+/* Honour prefers-reduced-motion on the chevron rotation. */
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+.noValue {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--base04);
+  margin: 0;
+}
+
+/* "(inferred)" / "(universal)" markers shown above the Signature/Value author-
+ * view tree fallbacks — "(inferred)" when the type was not written in source
+ * (decl_sig_byte_range === null; author delab tree), "(universal)" when the
+ * author tree is missing too and the universal (empty-view) tree renders
+ * instead (generated / pre-backfill decls). Muted caption styling per the
+ * design § "Author-view extraction"; sits on its own line above the tree. */
+.inferredBadge {
+  display: block;
+  font-family: var(--font-sans, inherit);
+  font-size: 0.72rem;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--base04);
+  margin-bottom: 0.25rem;
+}
+
+/* ---- Referenced by section ----------------------------------------- */
+
+/* The Referenced by list has its OWN row class (`.referencedByRow`) — not
+ * `.outlineRow` from the In-this-file outline. The two are visually
+ * similar (a clickable button row in a vertical list) but the data they
+ * carry is different: the outline row is a single mono `local_name`
+ * tickbox; the referenced-by row is a two-line stacked block (mono
+ * `local_name` on top, muted `qualified_name` underneath) plus a
+ * trailing `kind` chip. Forcing both into `.outlineRow` would pollute
+ * the outline's vocabulary with secondary-row chrome it doesn't need.
+ *
+ * The classes below cover the section's loading + empty surfaces —
+ * narrower than the panel-wide LoadingSkeleton / ErrorSection (those
+ * describe a primary-fetch failure that hides the entire panel body;
+ * the referenced-by section is secondary, so it surfaces its own
+ * narrower placeholders rather than blanking the panel). The error
+ * surface reuses the panel's primary `.errorMessage` / `.errorIcon`
+ * tokens so the two surfaces are tonally aligned (CO-12).
+ */
+
+/* Referenced-by list — vertical stack of rows. Bordered + rounded so
+ * the section reads as a distinct surface from the surrounding sections
+ * (the file-outline `.outlineList` does the same). No max-height /
+ * overflow — the rows scroll inside the panel body, not inside the list,
+ * so a Load-more click flows the visitor downward through the panel's
+ * primary scroller rather than introducing a nested scroll container the
+ * "Load more" button would push out of view on every click. */
+.referencedByList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--base02);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Referenced-by row — a clickable two-line row with a kind chip on the
+ * right. `align-items: flex-start` so the chip pins to the top of the row
+ * (aligned with the local_name line) regardless of how the labels wrap. */
+.referencedByRow {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--base05);
+  font: inherit;
+}
+
+.referencedByRow + .referencedByRow,
+.referencedByList li + li .referencedByRow {
+  /* Thin separator between rows so the stack reads as a list rather than
+   * one big block — the bordered container gives the outer chrome, this
+   * rule gives the row-to-row delineation. Using a border on the row
+   * (not box-shadow) so it follows the row's content box exactly. */
+  border-top: 1px solid var(--base02);
+}
+
+.referencedByRow:hover {
+  background-color: color-mix(in oklab, var(--base02) 50%, transparent);
+}
+
+.referencedByRow:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+/* The label stack — local_name (primary, mono) on top, qualified_name
+ * (muted, smaller, mono) below. `flex: 1 1 auto` so the chip sits on the
+ * right edge. `min-width: 0` lets the inner text shrink and apply its
+ * own `text-overflow: ellipsis` instead of overflowing the row. */
+.referencedByRowLabels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.referencedByLocalName {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--base05);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.referencedByQualifiedName {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--base04);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Kind chip — small uppercase muted tag. `flex: 0 0 auto` so it never
+ * shrinks; `align-self: center` pins it vertically centred to the row's
+ * two-line content rather than top-aligned. */
+.referencedByKindChip {
+  flex: 0 0 auto;
+  align-self: center;
+  font-family: var(--font-sans, inherit);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--base04);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background-color: color-mix(in oklab, var(--base02) 60%, transparent);
+}
+
+/* Stacked skeleton container — three short row-height strips telegraph
+ * "list of rows incoming" rather than the prior single 2.5rem strip
+ * (which read as a summary line). Matches the outline-row visual rhythm:
+ * row-height strips, vertically stacked with a small gap (CO-13). */
+.referencedBySkeletonStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.referencedBySkeletonRow {
+  /* Match `.outlineRow`'s laid-out row height (1rem font + 0.25rem
+   * vertical padding × 2 ≈ 1.5rem) so the loading rhythm tracks the
+   * populated rhythm and the surface doesn't reflow on transition. */
+  height: 1.25rem;
+  width: 100%;
+}
+
+/* Generic "section has nothing to show" prose copy. Distinct from
+ * `.noValue` which is monospaced for "(no value)" in the axiom Value
+ * section — using `.noValue` for prose like "Nothing references this
+ * declaration." reads wrong (it implies an unrendered code token rather
+ * than the absence of a referent). Sans-serif italic muted is the
+ * "calm absence" idiom GitHub / VS Code use (CO-7). */
+.sectionEmpty {
+  margin: 0;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--base04);
+}
+
+/* ---- Premise telescope (theorem panels) ---------------------------- */
+
+/* The Premises section renders `(name : type)` one premise per line, the same
+ * telescope shape the Theorem Page's synthetic signature uses
+ * (theorem/[def_id]/theorem-syntax.module.css). It reuses the `.codeSurface`
+ * box vocabulary — same mono family, size, tinted panel — with a hanging indent
+ * so a wrapped type aligns under the binder rather than under the paren. */
+.telescope {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  background-color: var(--base01);
+  border: 1px solid var(--base02);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.premiseLine {
+  display: block;
+  padding-left: 2ch;
+  text-indent: -2ch;
+}
+
+/* Premise binder name (`moral_duty`) — a local def-site. Inert by default; the
+ * `.premiseBinderLink` variant is the button a host with a proposition panel
+ * wires (identical face, plus the pointer / hover / focus affordances). */
+.premiseBinder {
+  color: var(--base0D);
+}
+
+.premiseBinderLink {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--base0D);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.premiseBinderLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.premiseBinderLink:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Structural punctuation rendered literally: `(`, ` : `, `)`. Muted so the
+ * proposition content reads as the foreground. */
+.punct {
+  color: var(--base04);
+}
+
+/* Collapsed-premises affordance — a chip, deliberately NOT source-styled, so it
+ * reads as a control rather than another binder line. Mirrors the Theorem
+ * Page's `.moreChip`. */
+.premiseMoreChip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--base02);
+  border-radius: 999px;
+  background-color: var(--base00);
+  color: var(--base04);
+  font-family: var(--font-sans, inherit);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.premiseMoreChip:hover {
+  background-color: var(--base02);
+  color: var(--base05);
+}
+.premiseMoreChip:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* A statement node that predates the per-node token backfill: render a muted
+ * ellipsis rather than an empty line. */
+.statementUnavailable {
+  color: var(--base04);
+  font-style: italic;
+}
+
+/* Shiki-output reset for a node rendered from source bytes inside a telescope
+ * line — the `.codeSurface` reset's twin, needed here because the slice must
+ * flow INLINE within `( name : … )` instead of breaking the parens onto their
+ * own lines. */
+.telescope :global(pre.shiki),
+.telescope :global(pre.shiki) code {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  white-space: inherit;
+}
+
+/* ---- Loading state ------------------------------------------------- */
+
+/* Retained for back-compat with any consumer that imports `.loading`;
+ * the panel itself now renders the skeleton screen below. */
+.loading {
+  font-size: 0.9rem;
+  color: var(--base04);
+  margin: 0;
+}
+
+/* Skeleton screen — renders shadcn `Skeleton` rectangles in the rough
+ * layout of the loaded content (Identity heading, Type/Value code blocks)
+ * so the visitor sees the right shape before data lands. The skeleton
+ * shares the panel body's section gap (1.25rem) via `.body`'s flex column
+ * but the individual sections have their own tighter gap (0.4rem)
+ * matching `.section`. */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Identity-section placeholders. Heights track the typography of the
+ * matching real elements so the slide-in doesn't reflow on load. */
+.skeletonHeading {
+  height: 1.5rem;
+  width: 60%;
+}
+
+.skeletonCaption {
+  height: 0.85rem;
+  width: 80%;
+}
+
+.skeletonLine {
+  height: 0.85rem;
+  width: 90%;
+}
+
+/* Section title (matches `.sectionTitle`'s 0.85rem title-case strip). */
+.skeletonSectionTitle {
+  height: 0.85rem;
+  width: 4rem;
+}
+
+/* Type/Value code block placeholder — matches `.codeSurface`'s 0.6rem
+ * vertical padding + a few lines so the rectangle reads as code. */
+.skeletonCodeSurface {
+  height: 4rem;
+  width: 100%;
+}
+
+/* ---- Error state --------------------------------------------------- */
+
+.errorMessage {
+  font-size: 0.9rem;
+  color: var(--base08);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.errorIcon {
+  flex-shrink: 0;
+  color: var(--base08);
+}
+
+/* HTTP status code line — muted so it reads as a developer hint rather
+ * than the headline failure message. Mono so the number reads as code. */
+.errorStatus {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--base04);
+  margin: 0;
+}
+
+/* ---- Idle / no-selection placeholder ------------------------------- */
+
+/* Defensively rendered when the panel is mounted with `def_id === null`
+ * (a transitional close-animation pose for a future revision). Mirrors
+ * `.loading` posture; the section's aria-label is the AT-meaningful bit. */
+.idleMessage {
+  font-size: 0.9rem;
+  color: var(--base04);
+  margin: 0;
+}

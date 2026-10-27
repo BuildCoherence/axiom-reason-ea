@@ -1,0 +1,219 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go-test:
+    name: Go tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      # On Windows and macOS this includes the corpus tarball golden hash; on
+      # Windows also the atomic corpus and site install (a directory holding an
+      # open file cannot be removed) and the `axm viewer` path confinement
+      # (drive letter, UNC, junction and symlink escapes).
+      - name: Go tests
+        run: go test -count=1 ./...
+      - name: Parse install.ps1 under Windows PowerShell 5.1
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          $path = (Resolve-Path 'install/install.ps1').Path
+          [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+      - name: Parse install.ps1 under PowerShell 7
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          $path = (Resolve-Path 'install/install.ps1').Path
+          [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+      - name: Test install.ps1 against local fixtures under PowerShell 5.1 and 7
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          for ps in powershell pwsh; do
+            POWERSHELL="$ps" python -m unittest discover -s install -v
+          done
+
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Installers are ASCII without a BOM
+        run: python3 install/check_scripts.py
+      - name: Installers download from Release assets, not the REST API
+        run: |
+          if grep -nF 'api.github.com' install/install.sh install/install.ps1; then
+            exit 1
+          fi
+      - name: Shellcheck install.sh
+        run: shellcheck install/install.sh
+      - name: Test installers against local fixtures
+        run: python3 -m unittest discover -s install -v
+
+  release-config:
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: go1.26.10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      # Builds all six archives without publishing, so a broken .goreleaser.yaml
+      # or a toolchain below the go.mod floor fails here rather than on a tag.
+      - name: GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          distribution: goreleaser
+          version: v2.12.7
+          args: release --snapshot --clean --skip=publish
+      # Old clients refuse an extracted executable over 50 MiB.
+      - name: Executable size for old-client upgrades
+        run: |
+          python3 -m unittest discover -s scripts -p test_binary_size.py -v
+          python3 scripts/check-binary-size.py dist --expected 6
+
+  viewer:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: viewer
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Build the fixture export
+        run: npm run build:fixture
+      # Fails above ASSET_CEILING emitted files, on any file over 25 MiB, or on
+      # a Windows reserved device name in any emitted path part.
+      - name: Fixture asset budget
+        run: npm run check:assets
+      - name: Emitted-tree, asset-budget and search-index tests
+        run: npm run test:export
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: npm run test:e2e
+      - name: Build the Published Corpus export
+        if: hashFiles('corpus/corpus.json') != ''
+        run: npm run build
+      - name: Published Corpus asset budget
+        if: hashFiles('corpus/corpus.json') != ''
+        run: npm run check:assets
+
+  prepublication-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+      - name: Install gitleaks and go-licenses
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@v8.28.0
+          go install github.com/google/go-licenses@v1.6.0
+      # History scans run only before publication; CI scans the committed tree.
+      - name: Export the committed tree
+        run: |
+          mkdir "$RUNNER_TEMP/tree"
+          git archive --format=tar HEAD | tar -x -C "$RUNNER_TEMP/tree"
+      # DENY_PATTERNS is set by a maintainer; a fork pull request receives no
+      # secrets, so there the leg reports `skipped: DENY_PATTERNS unset` and
+      # the push to main reruns it.
+      - name: Deny-list
+        env:
+          DENY_PATTERNS: ${{ secrets.DENY_PATTERNS }}
+        run: go run ./scripts/prepublication-gate -root "$RUNNER_TEMP/tree" -legs deny
+      - name: Gitleaks and font licenses
+        run: go run ./scripts/prepublication-gate -root "$RUNNER_TEMP/tree" -legs gitleaks,fonts
+      - name: Install viewer dependencies
+        working-directory: viewer
+        run: npm ci
+      - name: Dependency licenses
+        run: go run ./scripts/prepublication-gate -legs licenses
+
+  corpus-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: changes
+        with:
+          filters: |
+            corpus:
+              - "corpus/**"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        if: steps.changes.outputs.corpus == 'true'
+        with:
+          go-version-file: go.mod
+      # elan installs the corpus's pinned Lean toolchain on first use.
+      - name: Install elan
+        if: steps.changes.outputs.corpus == 'true'
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/v4.2.4/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Corpus gate
+        if: steps.changes.outputs.corpus == 'true'
+        run: go run ./scripts/corpus-gate corpus
+      - name: Corpus gate lake build tests
+        if: steps.changes.outputs.corpus == 'true'
+        run: go test -count=1 -tags corpusgate_e2e ./scripts/corpus-gate/

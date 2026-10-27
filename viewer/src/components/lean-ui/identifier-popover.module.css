@@ -1,0 +1,102 @@
+/* Identifier hover popover styles — see identifier-popover.tsx for the
+ * wiring rationale. Lives next to the consumer so the popover's typography
+ * stays in step with the surrounding token surface. Uses the Base16 vars
+ * so the popover reads correctly under any theme. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.content {
+  /* Radix's Popover content is unstyled; we paint the surface (bg,
+   * border, radius, shadow) here. Width is auto with a cap so a long
+   * qualified_name or inlined type summary doesn't blow the popover off
+   * the viewport — the monospace surface needs more horizontal room
+   * than a fixed narrow width. */
+  width: auto;
+  min-width: 14rem;
+  max-width: min(32rem, 90vw);
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  background-color: var(--base01);
+  border: 1px solid var(--base02);
+  color: var(--base05);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+  z-index: 50;
+  /* Allow the inline-type-summary to wrap rather than overflow. */
+  white-space: normal;
+}
+
+/* Open/close motion mirrors the previous hover-card.tsx animation —
+ * fade + slight zoom, gated by prefers-reduced-motion so the popover
+ * snaps in / out for users with motion sensitivity. Radix sets
+ * `data-state="open" | "closed"` on the content element. */
+@media (prefers-reduced-motion: no-preference) {
+  .content[data-state="open"] {
+    animation: identifier-popover-in 120ms ease-out;
+  }
+  .content[data-state="closed"] {
+    animation: identifier-popover-out 80ms ease-in;
+  }
+}
+
+@keyframes identifier-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes identifier-popover-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.qualifiedName {
+  /* The qualified_name is the panel-anchor identity; render in the
+   * default foreground so it reads as the primary line. */
+  color: var(--base05);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.typeSummary {
+  /* The one-line type summary is secondary information; render slightly
+   * muted so the qualified_name reads first. Pre-wrap so spaces and
+   * indentation in the Format output survive. */
+  color: var(--base04);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.kindBadge {
+  /* Small badge for non-default hover_kind values (tactic / field / doc).
+   * Aligns left like the rest of the body; uses the muted-bg slot for the
+   * pill so the badge reads as an annotation rather than a heading. */
+  display: inline-block;
+  align-self: flex-start;
+  background-color: var(--base02);
+  color: var(--base04);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}

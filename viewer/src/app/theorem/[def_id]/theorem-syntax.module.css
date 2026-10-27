@@ -1,0 +1,181 @@
+/* Synthetic theorem-signature Lean syntax (theorem-syntax.tsx). Monospace, line-
+ * per-binder, wrapping. All colors are Base16 tokens so it tracks data-mode +
+ * palette swaps — no hardcoded hex
+ * (the internal nextjs-styling-and-component-stack doc). */
+
+.syntax {
+  margin: 0;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1.6;
+  /* Wrap long premise/conclusion lines rather than forcing horizontal scroll;
+   * the per-line indent is carried by padding so wrapped runs hang-align. */
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--base05);
+  tab-size: 4;
+}
+
+/* One source line. Block so each binder sits on its own row; the inline content
+ * (literals + the rendered TokenTreeView spans) wraps within it. */
+.line {
+  display: block;
+}
+
+/* First line (`theorem <name>`) — a flex row so an optional trailing control
+ * (the mobile expand/collapse chevron) sits with the head in both states. */
+.firstLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.firstLineText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Collapsed (mobile): the head truncates to a single line rather than wrapping,
+ * so the bar doubles as the collapsed summary. */
+.firstLineTruncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Premises: 4-space indent (Lean telescope convention). Hanging-indent the
+ * wrapped continuation so a long type aligns under the binder rather than under
+ * the opening paren. */
+.premise {
+  padding-left: 4ch;
+}
+
+/* Conclusion: 2-space indent before the `:`. */
+.conclusion {
+  padding-left: 2ch;
+}
+
+/* `theorem` keyword. */
+.keyword {
+  color: var(--base0E);
+  font-weight: 600;
+}
+
+/* The theorem name — clickable into the side panel (its own def). Reads as an
+ * interactive identifier: identifier color, pointer, hover underline, focus
+ * ring. Matches the in-proposition identifier affordance. */
+.name {
+  color: var(--base0D);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.name:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.name:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Premise binder name (`moral_duty`) — a local def-site, NOT clickable. */
+.binder {
+  color: var(--base0D);
+}
+
+.propLink {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.propLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.propLink:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Structural punctuation we render literally: `(`, ` : `, `)`, `: `. Muted so
+ * the proposition content reads as the foreground. */
+.punct {
+  color: var(--base04);
+}
+
+.conclusionLink {
+  cursor: pointer;
+  border-radius: 3px;
+  /* The link wraps only `: ` (a ~19px hit target in 1rem monospace). Extend the
+   * pointer/focus hit area with padding, cancelled by equal negative margins so
+   * the inline box paints wider without shifting the surrounding source layout
+   * (the pre is white-space: pre-wrap; inline horizontal margins net to zero and
+   * inline vertical padding/margins don't affect line height). */
+  padding: 0.25rem 0.35rem;
+  margin: -0.25rem -0.35rem;
+}
+.conclusionLink:hover {
+  color: var(--base0D);
+}
+.conclusionLink:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Collapsed-premises affordance — a DISTINCT chip, deliberately NOT styled like
+ * a source line, so it reads as a control rather than another binder. It breaks
+ * from the monospace family (system sans), sits in a tinted rounded pill at the
+ * 4-space premise indent, and carries a chevron. */
+.moreRow {
+  padding-left: 4ch;
+  margin: 0.25rem 0;
+}
+.moreChip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--base02);
+  border-radius: 999px;
+  background-color: var(--base01);
+  color: var(--base04);
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.moreChip:hover {
+  background-color: var(--base02);
+  color: var(--base05);
+}
+.moreChip:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Graceful fallback when a node has no token tree yet (pre-backfill). */
+.unavailable {
+  color: var(--base04);
+  font-style: italic;
+}
+
+/* Author-view source-slice identifier coloring + affordance is handled durably
+ * in `render-hast`'s `IdentifierSpan` (slice mode) — shared across every
+ * ShikiSlice surface — so there is NO per-surface `.ce-identifier` rule here. */
+
+/* Strip Shiki's own `<pre class="shiki">` chrome AND make it render INLINE so a
+ * slice sits inside the `( name : … )` line like the TokenTreeView render —
+ * otherwise the block `<pre>` (grey --base01 box + block flow) pushes the
+ * parens onto their own lines. `code`/`.line` are Shiki's inner wrappers. */
+.syntax :global(.shiki),
+.syntax :global(.shiki) code,
+.syntax :global(.shiki) :global(.line) {
+  display: inline;
+  background: transparent !important;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+}

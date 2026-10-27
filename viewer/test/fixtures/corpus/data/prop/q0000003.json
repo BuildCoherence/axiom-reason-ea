@@ -1,0 +1,61 @@
+{
+  "proposition": {
+    "proposition_id": "q0000003",
+    "p": {
+      "author": null,
+      "empty": {
+        "node": "text",
+        "text": "Q"
+      }
+    },
+    "p_author_source": null,
+    "defined_by": null,
+    "holders": 1,
+    "rejecters": null,
+    "adoptable": true,
+    "endcap_eligible": true,
+    "settled": false,
+    "negation_proposition_id": null,
+    "acknowledgements": {
+      "acknowledged_undecided": 0
+    },
+    "supports": [
+      {
+        "def_id": "m0000001",
+        "name": "modus_ponens",
+        "premise_count": 2,
+        "concludes_false": false,
+        "source": "theorem",
+        "premise_axiom_ids": []
+      }
+    ],
+    "holder_rows": [
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "m0000001",
+          "source": "theorem"
+        }
+      }
+    ],
+    "rejecter_rows": [],
+    "equivalences": []
+  },
+  "holders": {
+    "proposition_id": "q0000003",
+    "pro": [
+      {
+        "username": "bob",
+        "provenance": "derived",
+        "inconsistent": false,
+        "witness": {
+          "def_id": "m0000001",
+          "source": "theorem"
+        }
+      }
+    ],
+    "con": []
+  }
+}

@@ -1,0 +1,32 @@
+/* "View theorem page" icon-link, shared across the file page, side panel, and
+ * profile rows. Base16 theme vars (tracks data-mode). */
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  vertical-align: baseline;
+  color: var(--base0D);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--base0C);
+}
+
+/* Foundation focus-ring convention: outline (not box-shadow) so it survives
+ * Windows High Contrast Mode. */
+.link:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  /* Rotate the lucide `Network` glyph 180° so it reads "two on top, one on the
+   * bottom" — premises converging into a conclusion, matching the Theorem
+   * Page's premise-DAG fan-in. */
+  transform: rotate(180deg);
+}

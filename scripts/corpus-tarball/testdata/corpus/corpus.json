@@ -1,0 +1,12 @@
+{
+  "export_id": "20261101T120000Z",
+  "frozen_at": "2026-11-01T12:00:00Z",
+  "toolchain": "leanprover/lean4:v4.34.0",
+  "axiomlib_tag": "v1.0.6-beta",
+  "axiomlib_rev": "0000000000000000000000000000000000000000",
+  "graph_generation": 7,
+  "files": [
+    {"id": "a1111111", "sha256": "893817c8e3e8a4b3350bd473bdbacafc7d025a3533edd009ffee606529a95b42", "publisher": "alice", "published_at": "2026-10-01T00:00:00Z", "forked_from": null, "deps": ["b2222222"]},
+    {"id": "b2222222", "sha256": "ef588452de1f392eb03c2a556822c9e6fc77d132b36dd40253eb1bce8a331b31", "publisher": "alice", "published_at": "2026-09-01T00:00:00Z", "forked_from": null, "deps": []}
+  ]
+}

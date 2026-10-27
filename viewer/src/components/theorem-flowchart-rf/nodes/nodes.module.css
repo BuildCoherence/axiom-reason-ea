@@ -1,0 +1,742 @@
+/* React-Flow theorem-flowchart node cards. Uses the Base16 theme vars so it
+ * tracks data-mode — NO hardcoded hex
+ * (the internal nextjs-styling-and-component-stack doc).
+ *
+ * The card px below (named in comments as they appear) DUPLICATE layout.ts's
+ * NODE_WIDTH and the terms it sums into NODE_HEIGHT. A page card now SIZES TO ITS
+ * CONTENT, so those px are the card's FLOOR (min-width / min-height) rather than
+ * its box; they remain the exact box on the surfaces that declare fixed boxes —
+ * the OG presets and the phase-1 seed. Change one, change both. */
+
+/* ---- Hide React Flow connection handles ----------------------------------- */
+/* Edges are custom-drawn through dagre/bundling WAYPOINTS, not from handle
+ * positions — handles exist ONLY as the anchors the trunk self-loop idiom (the
+ * trunk-in is a CONTAINER→CONTAINER edge) needs, and React Flow's default ○ dots
+ * must never be seen (bug #2). We make them visually invisible while keeping them
+ * in the DOM as functioning anchors: zero size, no paint. The RF default already
+ * sets pointer-events:none on a non-connectable handle, so this is purely
+ * cosmetic. Scoped UNDER our local node classes (the handles render inside the
+ * card / group nodes) because a CSS-module selector must contain a local class —
+ * a bare `:global(...)` rule is rejected as "not pure". */
+.card :global(.react-flow__handle),
+.group :global(.react-flow__handle),
+.groupCollapsed :global(.react-flow__handle) {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  background: transparent;
+  opacity: 0;
+}
+
+/* ---- Shared proposition card (premise / conclusion / interior) ------------ */
+
+/* The card is CONTENT-SIZED: `max-content` up to the active Measure Rung
+ * (`--card-measure`, published on the shell wrapper), with the old fixed box as a
+ * floor. The floor is a MONOTONICITY guarantee, not a stability one — a card whose
+ * content fits inside 190×98 keeps that box, a longer one grows. The shell
+ * MEASURES the result and lays the graph out from it, so nothing here may pin a
+ * dimension the measurement then has to fight. */
+.card {
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 190px; /* NODE_WIDTH */
+  max-width: var(--card-measure);
+  height: auto;
+  min-height: 98px; /* NODE_HEIGHT */
+  position: relative; /* anchors the .stanceBar*::after adoption-status overlay */
+  display: flex;
+  flex-direction: column;
+  /* `clip`, never `hidden`: `hidden` makes the card a scroll container, and the
+   * coarse-pointer 44px hit targets overflow the fixed footer — a click could
+   * then scroll the card and hide its own adoption rail (test-plan §f.5c). */
+  overflow: clip;
+  border: 1px solid var(--base02);
+  border-radius: 10px;
+  background-color: var(--base00);
+  color: var(--base05);
+  /* Quiet elevation so cards lift off the canvas without shouting. */
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--base05) 8%, transparent),
+    0 2px 8px color-mix(in oklch, var(--base05) 6%, transparent);
+}
+
+/* PHASE-1 SEED CLAMP. While the shell is `seeding` (theorem-flowchart-rf.tsx)
+ * every card is held to one seed-grid cell, so a card that measures taller than
+ * its cell can never overlap the row below before the box table is committed.
+ * `--phase1-cell-h` is published on the shell wrapper. It clips the very element
+ * the observer measures, which is why the shell drops to `measuring` — clamp off,
+ * cards at true size — BEFORE any box table is written. */
+[data-layout="seeding"] .card {
+  max-height: var(--phase1-cell-h);
+  overflow: clip; /* never `hidden` — see `.card` on the scroll-container hazard */
+}
+
+/* A thin top accent rail carries the kind color across the full card width —
+ * the at-a-glance kind cue that survives zoom-out. Each kind paints `--accent`.
+ * Fixed 3px (CARD_RAIL_HEIGHT) and IN-FLOW, so it is one of the terms the card
+ * height sums. On premise / conclusion cards the 3px ADOPTION-STATUS rail
+ * (`.stanceBar*::after`, an out-of-flow overlay below) paints OVER it, adding
+ * nothing to the height. */
+.card::before {
+  content: "";
+  display: block;
+  flex: none;
+  height: 3px;
+  background-color: var(--accent, var(--base03));
+}
+
+/* ---- Adoption-status THIN top bar (premise + conclusion) ------------------
+ * The viewer's stance shown as a thin rail at the very top of the card (NOT a
+ * card outline — design change #2): green held / red rejected / gray
+ * undecided|none. Rendered as an ABSOLUTELY-POSITIONED overlay (`--rail-color` set
+ * by the .stanceBar* modifiers) so its 3px never adds to the fixed NODE_HEIGHT
+ * box — it covers the in-flow 3px kind rail exactly. Meaning is carried by the
+ * corner ⊢/¬ symbol + the stance-colored kind glyph + aria too, never color-alone
+ * (WCAG 1.4.1). Interior step cards set no modifier, so this overlay is absent and
+ * the thin kind rail shows through. The card is `overflow:hidden` so the bar clips
+ * to the top border-radius. */
+.stanceBarHeld {
+  --rail-color: var(--base0B);
+}
+.stanceBarRejected {
+  --rail-color: var(--base08);
+}
+.stanceBarUndecided {
+  /* Neutral gray — "not yet reckoned with". base04 reads in both modes. */
+  --rail-color: var(--base04);
+}
+.stanceBarPendingHeld {
+  --rail-color: var(--base0B);
+}
+.stanceBarPendingRejected {
+  --rail-color: var(--base08);
+}
+.stanceBarPendingUndecided {
+  --rail-color: var(--base04);
+}
+.stanceBarHeld::after,
+.stanceBarRejected::after,
+.stanceBarUndecided::after,
+.stanceBarPendingHeld::after,
+.stanceBarPendingRejected::after,
+.stanceBarPendingUndecided::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: var(--rail-color);
+  /* Sits above the card body but below interactive children; the card is the
+   * positioning context (position:relative set on .card). */
+  z-index: 1;
+  pointer-events: none;
+}
+.stanceBarPendingHeld::after,
+.stanceBarPendingRejected::after,
+.stanceBarPendingUndecided::after {
+  background: repeating-linear-gradient(90deg, var(--rail-color) 0 5px, transparent 5px 9px);
+}
+
+/* ---- Header row: icon + kind label, with the stance chip pushed right ------ */
+
+.header {
+  flex: none;
+  height: 30px; /* CARD_HEADER_HEIGHT — fixed so font metrics can't grow it */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.7rem;
+}
+
+.kindIcon {
+  display: inline-flex;
+  flex: none;
+  color: var(--accent, var(--base04));
+}
+
+/* Kind GLYPH (design change #3): ∵ premise / ∴ conclusion rendered as styled
+ * text in the icon slot. Sized to read at roughly the old 13px lucide icon and
+ * vertically centered in the fixed-height header. The bold weight + tabular box
+ * keep it crisp at small zooms. */
+.kindGlyph {
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* STANCE-colored glyph (design change #3): on premise / conclusion cards the
+ * ∵ / ∴ glyph is colored by the viewer's HOLDING STATUS, matching the top bar —
+ * held green / rejected red / undecided|none gray. The stance modifier on the
+ * card root (.stanceBar*) sets `--rail-color`; the glyph reads it (overriding the
+ * kind `--accent` that .kindIcon would otherwise apply). Meaning still rides on
+ * the corner symbol + aria, never color alone (WCAG 1.4.1). */
+.card .kindGlyph {
+  color: var(--rail-color, var(--base04));
+}
+
+.kindLabel {
+  margin: 0;
+  min-width: 0; /* allow the flex item to shrink so ellipsis can engage */
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--base04);
+  /* Single line; ellipsise when too long (kind word OR a long premise name). */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The premise's snake_case name shown in the header in place of the kind word —
+ * monospace + normal case so `moral_duty` reads as an identifier, not a label.
+ * Inherits the single-line ellipsis truncation from .kindLabel. Colored with the
+ * binder def-site slot (= --base0D) so the header name matches how the SAME
+ * binder reads in the left signature panel (theorem-syntax `.binder`) and the
+ * author-view slice's local variables. */
+.premiseName {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--ce-token-binder-defsite);
+}
+
+.headerPropLink {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.headerPropLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.headerPropLink:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Viewer-stance CORNER SYMBOL ("you") — design change #2. A single glyph in the
+ * top-right of the header: ⊢ (held) / ¬ (rejected) — the SAME glyphs the holding
+ * bar uses. Undecided shows no symbol (the gray top bar carries it). Pushed to
+ * the trailing edge; the glyph is aria-hidden, the wrapper carries the a11y name.
+ * This is YOU (distinct from the aggregate holding bar = everyone). */
+.stanceSymbol {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.stanceSymbolHeld {
+  color: var(--base0B);
+}
+.stanceSymbolRejected {
+  color: var(--base08);
+}
+.stanceSymbolUndecided {
+  color: var(--base04);
+}
+
+/* ---- Proposition body: real Lean glyphs, clamped + faded ------------------- */
+
+.proposition {
+  /* The body grows with the proposition: no height, so the card's own height is
+   * the sum of its rows. This is the PADDED wrapper; it owns the vertical padding
+   * so the text box itself carries none. flex:none keeps it out of any residual
+   * flex distribution. */
+  flex: none;
+  box-sizing: border-box;
+  position: relative;
+  padding: 6px 0.7rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.propositionClamp {
+  /* The proposition text box: an ordinary block that wraps at the card's
+   * max-width and is as tall as the wrapped text needs. NO padding (the wrapper
+   * owns it), and the line-height is an EXACT px matching CARD_LINE_HEIGHT in
+   * layout.ts so the floor's one-line body is a whole number of line boxes. */
+  display: block;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 18px; /* CARD_LINE_HEIGHT */
+  color: var(--base05);
+  word-break: break-word;
+  /* Horizontal centering: a full-width line is visually unchanged when centered
+   * (full line centered == left), so this only re-centers SHORT / last partial
+   * lines — exactly "less than a full line → centered". */
+  text-align: center;
+}
+
+.unavailable {
+  font-style: italic;
+  color: var(--base04);
+}
+
+/* The settled `False` body — the diff-remove red, bolded, so a conclusion that
+ * closes on a contradiction reads as one at a glance. Scoped under .card (and
+ * reaching the leaves) so it outranks BOTH `.propositionClamp`'s own colour and
+ * the per-atom kind colours `TokenTreeView` paints inside it. */
+.card .falseBody,
+.card .falseBody * {
+  color: var(--base08);
+  font-weight: 700;
+}
+
+/* ---- Selectable / copyable text -------------------------------------------
+ * React Flow sets `user-select: none` on `.react-flow__node` so a click-drag
+ * pans the canvas instead of selecting. For the READABLE text (the proposition
+ * body + the node name/title) we WANT highlight-to-copy, so we override that to
+ * `user-select: text` and show the text I-beam. The elements ALSO carry the
+ * global `nodrag nopan` classes in the JSX so a drag that starts on the text
+ * selects instead of grabbing the pane. Scoped to the text only — the holding-bar
+ * <button> and the fold toggle stay outside this class so they remain click
+ * targets (a whole-card text zone would swallow the bar/toggle click). The
+ * higher specificity here (local class) beats React Flow's `.react-flow__node`. */
+.selectableText {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* ---- Footer: aggregate Holding badges (or a settled label) ----------------- */
+
+.footer {
+  /* Fixed footer (CARD_FOOTER_HEIGHT = 35px, border-box so the 1px top border is
+   * included). flex:none + margin-top:auto pins it to the card bottom. */
+  flex: none;
+  height: 35px;
+  box-sizing: border-box;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  border-top: 1px solid var(--base01);
+  background-color: color-mix(in oklch, var(--base01) 45%, transparent);
+  /* The shared controls must not replace proposition text as the card's
+   * intrinsic-width authority. The footer takes the width chosen by the card. */
+  contain: inline-size;
+}
+
+/* A card that renders NO footer (a `False` conclusion) drops the footer row out
+ * of its FLOOR too — the 98px `.card` min-height would otherwise pad the removed
+ * panel straight back in as empty space. 63px = rail 3 + header 30 + one-line
+ * body 30, i.e. NODE_HEIGHT less this section's 35px; change one, change both.
+ * Only the floor moves — the card is measured, so its real box shrinks to its
+ * content on its own. Defined AFTER `.card` so the equal-specificity min-height
+ * override wins. */
+.footerless {
+  min-height: 63px;
+}
+
+/* Aggregate-holdings PROPORTION BAR (design change #1) — replaces the old chip
+ * badges. The whole row is a <button>: ⊢ {pro} (green) at the left end, a track
+ * filled green-from-left / red-from-right that MEET (no neutral middle), and
+ * ¬ {con} (red) at the right end. Clicking fires onBadgeActivate({ side,
+ * proposition_id, count, element }) — the production holders drill-in seam. Hover
+ * + cursor:pointer make the affordance obvious; the
+ * counts + glyphs (not color) carry meaning, and the button's aria-label spells
+ * out the action (WCAG 1.4.1 / 4.1.2). `nodrag` keeps RF from pan-grabbing it. */
+.holdingBar {
+  appearance: none;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  margin: 0 -0.2rem;
+  padding: 0.15rem 0.2rem;
+  background: transparent;
+  font: inherit;
+  color: var(--base05);
+}
+.holdingBar:hover {
+  background-color: color-mix(in oklch, var(--base05) 7%, transparent);
+  border-color: var(--base02);
+}
+.holdingBar:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 1px;
+}
+
+/* Non-interactive (readOnly / display-only) variant — the docked profile-list
+ * rows and the feed preview both render the bar as a static role="img" element
+ * (NOT a <button>), so it drops the click affordance: default cursor, no hover
+ * or focus chrome. The proportion track itself looks identical. Defined AFTER
+ * `.holdingBar` so the equal-specificity overrides win. */
+.holdingBarStatic {
+  cursor: default;
+}
+.holdingBarStatic:hover {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+/* The end counts: glyph (⊢ pro / ¬ con) + number. The glyph is colored to match
+ * its track segment; the bar's aria-label carries the full meaning. */
+.holdingCount {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.holdingGlyph {
+  font-weight: 800;
+}
+.holdingCountPro {
+  color: var(--base0B);
+}
+.holdingCountCon {
+  color: var(--base08);
+}
+
+/* The proportion track — a thin rounded rail. The green (left) and red (right)
+ * fills are parked at the two ends by `justify-content: space-between`; when both
+ * sides are present each fill is shaved by half of the ~5px gap (set inline in
+ * holding-bar.tsx), so the remaining free space falls between them as a NEUTRAL
+ * gap (this base01 track showing through) centered on the pro/con boundary — a
+ * color-blind cue so the boundary reads by spacing, not the green→red change
+ * alone. At an extreme (one side 0) the fills sum to 100%, leaving no free space
+ * and so no gap. overflow:hidden clips the fills to the rounding. */
+.holdingTrack {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  height: 0.5rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background-color: var(--base01);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklch, var(--base05) 10%, transparent);
+}
+/* `flex: 0 0 auto` honors each fill's inline width exactly (no grow/shrink), so
+ * the gap that `space-between` opens stays the intended 5px. */
+.holdingFillPro {
+  flex: 0 0 auto;
+  height: 100%;
+  background-color: var(--base0B);
+}
+.holdingFillCon {
+  flex: 0 0 auto;
+  height: 100%;
+  background-color: var(--base08);
+}
+
+/* EMPTY state (design fix #1): a proposition with NO holders (pro === 0 &&
+ * con === 0) reads as a NEUTRAL/empty affordance, NOT a fully-red bar. The track
+ * stays a bare muted rail (no green/red fill) and the ⊢0 / ¬0 glyph-counts go
+ * muted gray (base04) so the row reads "nobody has weighed in yet" rather than
+ * "everyone rejects". All via base16 tokens — tracks data-mode + palette swap. */
+.holdingTrackEmpty {
+  /* A flatter, plainly-muted rail — drop the inset ring so the empty track reads
+   * as a quiet placeholder rather than an unfilled progress bar. */
+  background-color: var(--base02);
+  box-shadow: none;
+}
+.holdingCountEmpty {
+  color: var(--base04);
+}
+.holdingCountEmpty .holdingGlyph {
+  font-weight: 700;
+}
+
+.settled {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background-color: var(--base01);
+  color: var(--base04);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ---- Per-kind chrome ------------------------------------------------------- */
+
+/* Premise + conclusion read as the SAME "proposition" chrome (design change #4):
+ * identical header tint, border, and label color — they are distinguished ONLY by
+ * the ∵ / ∴ glyph and the stance rail/glyph, not by kind hue. Both use the premise
+ * blue (Axiom) accent for the in-flow kind rail beneath the stance bar. */
+.premise,
+.conclusion {
+  --accent: var(--base0D);
+}
+.premise .header,
+.conclusion .header {
+  background-color: color-mix(in oklch, var(--base0D) 7%, transparent);
+}
+
+/* Interior steps live inside the proof frame — lighter chrome so they read as
+ * "machinery" subordinate to premises/conclusion. Bridge, intermediate, and
+ * restatement all share ONE purple accent (design change #7): the Axiom purple
+ * (--base0D), the SAME hue as the proof/theorem container frame — so the interior
+ * reads as a single coherent "proof" region (rail + glyph + minimap blob). */
+.interior {
+  --accent: var(--base0D);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--base05) 8%, transparent);
+}
+.bridge,
+.intermediate {
+  --accent: var(--base0D);
+}
+.interior .header {
+  background-color: color-mix(in oklch, var(--accent) 8%, transparent);
+}
+
+/* --- Proof-fold container (the collapsible group node) --------------------- */
+
+.group {
+  box-sizing: border-box;
+  /* Dashed, elevated frame + tinted wash so "this is a container" reads at a
+   * glance and is obviously distinct from a leaf card. */
+  border: 1.5px dashed color-mix(in oklch, var(--base0D) 45%, var(--base03));
+  border-radius: 14px;
+  background-color: color-mix(in oklch, var(--base0D) 5%, var(--base00));
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 11px,
+    color-mix(in oklch, var(--base05) 2%, transparent) 11px,
+    color-mix(in oklch, var(--base05) 2%, transparent) 12px
+  );
+}
+
+/* Collapsed: a compact pill standing in for the whole proof interior. Its height
+ * is FIXED at CONTAINER_COLLAPSED_HEIGHT (48px, layout.ts) and box-sizing:border-
+ * box so the rendered pill is EXACTLY the box dagre/layout reserved — that's what
+ * lets the conduit attach flush to the pill's top and bottom borders (bug #2).
+ *
+ * Its WIDTH holds the same contract from the other side: the pill is CONTENT-
+ * SIZED — as wide as the theorem name it shows — the shell measures it like a
+ * card, and the layout reserves the measurement (layout.ts § containerWidth). So
+ * nothing may pin this width: a fixed one here (or an inline one on the element)
+ * would be the box the observer reports, and the name would ellipsise inside a
+ * reservation that was never the pill. */
+.groupCollapsed {
+  width: max-content;
+  min-width: 190px; /* NODE_WIDTH — the card floor, so a short name still reads as a node */
+  /* Overflow ceiling only. A NAME_CAP (48 code point) name in the 0.8rem
+   * ui-monospace `.proofName` stack measures ~380px (~7.9px advance, measured on
+   * the live page), and the pill's chrome — ⇒ glyph, three 0.5rem gaps, the ⊢
+   * chip, the chevron, 0.7rem side padding, borders — is ~130px. 520px clears
+   * both, so `.proofName`'s ellipsis is safety that a capped name never trips. */
+  max-width: 520px;
+  height: 48px; /* CONTAINER_COLLAPSED_HEIGHT */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.7rem;
+  border-style: solid;
+  border-color: color-mix(in oklch, var(--base0D) 35%, var(--base02));
+  background-color: var(--base01);
+  background-image: none;
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--base05) 8%, transparent);
+}
+
+.groupIcon {
+  display: inline-flex;
+  flex: none;
+  color: var(--base0D);
+}
+
+/* Proof-fold GLYPH (design change #3): ⇒ ("implies") as styled text in the group
+ * icon slot, in place of the layers icon. Sized to the old 15px lucide icon. */
+.groupGlyph {
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Proof-fold header title (design change #3): the THEOREM NAME is primary, with
+ * the step count as a small secondary label beneath it. Shared by the collapsed
+ * pill + expanded frame headers. The name truncates with an ellipsis on one line
+ * (snake_case names can be long); the layout reserves room via min-width:0. */
+.proofTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.05rem;
+}
+.proofName {
+  max-width: 100%;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  /* Axiom purple pulled 15% toward the foreground slot. Bare --base0D on the
+   * base01 header/pill is 4.23:1 (light) / 4.49:1 (dark) — under WCAG 1.4.3's
+   * 4.5:1 for 12.8px text — and Base16 has no darker-purple slot. base05 is
+   * mode-aware, so ONE expression darkens in light and lightens in dark
+   * (5.2:1 / 5.5:1) while staying on the purple hue. */
+  color: color-mix(in oklch, var(--base0D) 85%, var(--base05));
+  /* Single line; ellipsise when too long. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Clickable theorem name (design fix #5): the name opens the Lean side panel
+ * when `theoremDefId` is provided. Reads as an interactive identifier — pointer
+ * cursor + a hover underline + a focus ring — matching the in-proposition
+ * identifier affordance. Theming via base16 tokens (no hardcoded hex). */
+.proofNameClickable {
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.proofNameClickable:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.proofNameClickable:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+.proofSteps {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--base04);
+}
+
+/* Theorem-level adopter chip (⊢ N) — the turnstile count of users who adopt the
+ * whole argument, on the proof-fold (theorem) node header (the redesign moves
+ * the count off the page header and swaps the old ★ for the ⊢ turnstile that
+ * rhymes with the Holding bar's "held" glyph). A compact clickable pill that
+ * opens the adopters drill-in. base16 tokens only — tracks data-mode. */
+.adopterChip {
+  appearance: none;
+  cursor: pointer;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  height: 1.4rem;
+  padding: 0 0.45rem;
+  border: 1px solid color-mix(in oklch, var(--base0D) 30%, var(--base02));
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--base0D) 8%, transparent);
+  color: var(--base0D);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.adopterChip:hover {
+  background-color: color-mix(in oklch, var(--base0D) 16%, transparent);
+  border-color: color-mix(in oklch, var(--base0D) 45%, var(--base02));
+}
+.adopterChip:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 1px;
+}
+.adopterGlyph {
+  font-weight: 800;
+}
+
+/* Expanded: the header row sits at the top of the framed parent region. */
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  margin: 0.3rem 0.3rem 0;
+  border-radius: 10px;
+  background-color: color-mix(in oklch, var(--base01) 85%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* Proof-fold expand control (design change #6): a BARE clickable chevron — no
+ * text, no button background or border. Just the arrow icon as the affordance,
+ * on both the collapsed pill and the expanded header. Accessibility rides on the
+ * aria-label ("Show steps" / "Hide steps") + aria-expanded in the JSX; the
+ * `nodrag` class keeps the click from being swallowed by a pane drag. A small
+ * square hit area + subtle hover/focus ring keep it discoverable + tappable. */
+.toggle {
+  appearance: none;
+  cursor: pointer;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--base04);
+  padding: 0;
+  line-height: 0;
+}
+.toggle:hover {
+  background-color: color-mix(in oklch, var(--base05) 8%, transparent);
+  color: var(--base05);
+}
+.toggle:focus-visible {
+  outline: 2px solid var(--ring, var(--base0D));
+  outline-offset: 2px;
+}
+
+/* Author-view source-slice identifier coloring + affordance is handled durably
+ * in `render-hast`'s `IdentifierSpan` (slice mode) — shared across every
+ * ShikiSlice surface — so there is NO per-surface `.ce-identifier` rule here. */
+
+/* Strip Shiki's own `<pre class="shiki">` chrome (the --base01 grey box +
+ * block padding) AND make it render INLINE + WRAPPING so a long author-view
+ * slice flows like the TokenTreeView render, instead of a single `pre` (no-wrap)
+ * line that overflows the card's max-width. Mirrors the left signature panel's
+ * `.syntax :global(.shiki)` strip (theorem-syntax.module.css). `code`/`.line` are
+ * Shiki's inner wrappers. Whitespace is normalised (not preserved verbatim)
+ * because the card is now CONTENT-SIZED: authored indentation would inflate the
+ * measured box, sizing the card to the source file's formatting rather than to
+ * the proposition. `word-break: break-word` still lets long identifiers wrap.
+ * (`white-space: pre-wrap` — verbatim layout inside a content-sized card — is
+ * deferred.) */
+.propositionClamp :global(.shiki),
+.propositionClamp :global(.shiki) code,
+.propositionClamp :global(.shiki) :global(.line) {
+  display: inline;
+  background: transparent !important;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  white-space: normal;
+  word-break: break-word;
+}

@@ -1,0 +1,246 @@
+/* Shared syntax-token color layer for the Lean UI Component.
+ * (notation-atom color slot added — see --ce-token-notation below.)
+ *
+ * Defines the `--ce-token-<slot>` CSS custom properties both render paths on
+ * the CE file page consume:
+ *
+ *   - The side panel's `TokenTreeView` (per-kind classes in
+ *     `token-tree.module.css`) resolves `color: var(--ce-token-<slot>)`.
+ *   - The Shiki-decorated file body (`base16-shiki-theme.ts`) emits inline
+ *     `color: var(--ce-token-<slot>)` on every identifier-shaped span.
+ *   - The data-attribute override rules at the bottom of this file additionally
+ *     overrule Shiki's inline color when a body span carries `data-kind` +
+ *     `data-binder-role` — so the AUTHORITATIVE `source_tokens` classification,
+ *     not the TextMate scope Shiki happened to recognise, drives identifier
+ *     color in the body. Shiki emits `style="color:..."` inline, so the
+ *     override needs `!important` to win against the inline style; this is the
+ *     conventional Shiki override pattern.
+ *
+ * Each slot aliases a Base16 palette slot. The mappings here are byte-identical
+ * to what `token-tree.module.css` and `base16-shiki-theme.ts` painted before
+ * this layer was introduced — see the matching commentary in each module — so
+ * the Phase 1 migration is a visual no-op. Changing a slot's palette mapping is
+ * now a one-line edit here; the two render paths stay in lock-step
+ * automatically. See the internal lean-ui-component doc and issue #756.
+ *
+ * Wrapped in `@layer ce-token-colors` so the unprefixed rules below stay below
+ * downstream surface authors' default cascade weight (matching the pattern
+ * Tailwind v4 ships with for `@layer base`).
+ */
+
+@layer ce-token-colors {
+  :root {
+    /* Identifier-shaped slots.
+     *
+     * Use-sites read in the muted-foreground slot (`--base04`) — one step
+     * down from the default `--base05` — so dense source code doesn't
+     * drown in highlighting while every kind in the panel still resolves
+     * to a DISTINCT colour (the previous `--base05` mapping collapsed
+     * use-site identifiers into default foreground in the panel, where
+     * there is no Shiki scope colouring to fall back on; the panel
+     * rendered as monochrome black). Only `def_site` binders stand out
+     * (currently `--base0D`). The plain-identifier slot keeps the prior
+     * `--base08` mapping; use-site identifiers are sub-styled through the
+     * data-attribute override at the bottom of this file and the panel's
+     * `.binderUseSite` class. */
+    --ce-token-identifier: var(--base08);
+    --ce-token-binder-defsite: var(--base0D);
+    --ce-token-binder-usesite: var(--base04);
+
+    /* Type-name slot — Shiki's `entity.name.type` family resolved to base0A
+     * before the layer, the canonical Base16 "classes / types" slot. The
+     * validator now classifies Sort-valued identifier heads `kind: "type"`
+     * (emission-completion amendment) and the panel's `.kindType` class
+     * references this slot, but type COLORING is fully deferred to a
+     * follow-up frontend PR (see the deferral note further down), so the
+     * slot's only live consumer today is the body's Shiki grammar routing
+     * (`entity.name.type` through the shared layer). */
+    --ce-token-type: var(--base0A);
+
+    /* Non-identifier slots — kept here so the side panel's `TokenTreeView`
+     * resolves the same vocabulary the body does.
+     *
+     * `--ce-token-op` aliases `--base0E` (magenta) — the conventional
+     * Base16 slot for operators / keyword-operators. The previous
+     * `--base05` mapping collapsed operators into default foreground in
+     * the panel (which has no Shiki scope-colour fallback) so e.g.
+     * `Type → Type → Type → Prop` rendered with the `→` arrows invisible
+     * against the page text. The body's `→` / `∀` / `=` operators still
+     * fall through to Shiki's default (no TextMate scope reliably tags
+     * them today — see base16-shiki-theme.ts § "operator coloring
+     * drift"); divergence is acceptable because the panel-side legibility
+     * win is bigger than the cross-surface match. */
+    --ce-token-keyword: var(--base0E);
+    --ce-token-op: var(--base0E);
+    --ce-token-literal: var(--base09);
+    /* String literals — decoupled from `--base0B` in LIGHT mode for WCAG
+     * 1.4.3 AA (4.5:1 over the body/panel background `--base01`). The shared
+     * `--base0B` (light) is `oklch(0.55 0.160 145)`, which gives only 4.04:1
+     * over `--base01` light — below 4.5:1. We can't darken `--base0B`
+     * globally because other consumers (theorem-flowchart-node,
+     * install-CLI status icon) also paint over different surfaces and the
+     * dark-mode variant already passes at 8.67:1. Instead we paint string
+     * tokens with a slightly darker green that passes contrast:
+     *   light: oklch(0.48 0.16 145)  -> 5.43:1 over --base01-light (PASS).
+     * Dark mode keeps `var(--base0B)` (oklch 0.75 0.170 145, 8.67:1 over
+     * --base01-dark). The override is in the per-mode block below so the
+     * default :root value lights up correctly when no `data-mode` is set yet
+     * (no-flash pre-paint window, matches token-colors.css's existing
+     * layering posture). Routed through the shared layer so the body's
+     * Shiki string scope (see base16-shiki-theme.ts) and the panel's
+     * `.kindString` class resolve to the same source of truth. */
+    --ce-token-string: oklch(0.48 0.16 145);
+    --ce-token-comment: var(--base03);
+
+    /* Stdlib / prelude identifier reference — base04 (muted foreground). The
+     * panel applies this via the `.stdlib` class; no Shiki scope routes here
+     * (Shiki does not know in-CE vs stdlib — that comes from the API's
+     * def_id resolution against `source_tokens`). */
+    --ce-token-stdlib: var(--base04);
+
+    /* Notation-use atom — the literal token(s) of a notation/macro that
+     * expands to a function application (`loves`; `thinks`/`about`; `∧`). The
+     * validator decomposes such a use into argument identifier tokens + these
+     * per-atom `notation` tokens (`source_tokens` kind `"notation"`,
+     * `qualified_name` = the head function). Reads as cyan — the Base16
+     * "support / function" slot (`--base0C`) — so a function-notation atom reads
+     * DISTINCTLY from both plain identifiers (base08/base04) and structural
+     * operators (`--ce-token-op` = base0E magenta: `→`, `∀`). This is the
+     * "tell there's a function here" affordance the IDE gives.
+     *
+     * Decoupled from `--base0C` in LIGHT mode for WCAG 1.4.3 AA, EXACTLY as
+     * `--ce-token-string` is decoupled from `--base0B` above (same rationale,
+     * same pattern). The shared `--base0C` (light) is `oklch(0.60 0.120 200)`,
+     * which gives only ~3.6:1 over `--base00` light and ~3.3:1 over `--base01`
+     * light — both below the 4.5:1 text threshold. We can't darken `--base0C`
+     * globally (other consumers paint it over different surfaces and the
+     * dark-mode variant already passes ~10.3:1). So the light-mode :root default
+     * is a darker cyan (same hue family, L 0.60 → 0.50) that clears contrast on
+     * both light surfaces:
+     *   light: oklch(0.50 0.12 200)  -> 5.51:1 over --base00-light,
+     *                                   5.05:1 over --base01-light (both PASS).
+     * Dark mode keeps `var(--base0C)` (oklch 0.78 0.110 200) via the per-mode
+     * override block below — bright cyan that already clears AA on the dark
+     * surfaces. The default :root value lights up correctly in the no-flash
+     * pre-paint window (no `data-mode` yet), matching `--ce-token-string`. */
+    --ce-token-notation: oklch(0.50 0.12 200);
+  }
+
+  /* Dark-mode string override. `--base0B` in dark mode is
+   * `oklch(0.75 0.170 145)` which gives 8.67:1 contrast over `--base01`
+   * dark — comfortably above WCAG AA, so we keep the bright dark-mode
+   * green here. The light-mode :root default (`oklch(0.48 0.16 145)`) is
+   * only over-dark for the dark surface; we override per palette+mode to
+   * pull the lighter green back. Pattern mirrors the per-palette palette
+   * swaps in `src/app/globals.css`. */
+  [data-theme="axiom"][data-mode="dark"] {
+    --ce-token-string: var(--base0B);
+    /* Dark-mode notation override — `--base0C` in dark mode is
+     * `oklch(0.78 0.110 200)`, ~10.3:1 over `--base01` dark, comfortably above
+     * WCAG AA, so we keep the bright dark-mode cyan here. The light-mode :root
+     * default (`oklch(0.50 0.12 200)`) is over-dark for the dark surface; this
+     * pulls the lighter cyan back. Same per-palette+mode pattern as
+     * `--ce-token-string` directly above. */
+    --ce-token-notation: var(--base0C);
+  }
+}
+
+/* Data-attribute color overrides for the Shiki-decorated file body.
+ *
+ * Shiki's theme emits each token's color inline as `style="color:..."`. The
+ * server-side `buildDecorations` pass additionally stamps `data-kind` +
+ * `data-binder-role` on every identifier span from the authoritative
+ * `source_tokens` data. We want the AUTHORITATIVE classification to drive
+ * color, not whatever TextMate scope Shiki happened to recognise — so these
+ * rules override Shiki's inline color when both attributes are present.
+ *
+ * The `!important` is unfortunately load-bearing: Shiki emits color inline
+ * (`style="color:var(--base0X)"`), which beats any non-`!important` selector,
+ * however specific. Specificity alone (e.g. higher selector weight) cannot win
+ * against an inline style; the Shiki community-standard answer is the same
+ * `!important` pattern. The override is narrow — only spans whose `data-kind`
+ * matches the source-token kind vocabulary AND that carry a binder-role from
+ * `source_tokens` — so this does not cascade onto non-source-token surfaces.
+ *
+ * Identifier without a binder_role (e.g. a stdlib reference whose binder_role
+ * field is null) falls through to whatever color Shiki emitted, which is
+ * exactly the prior behavior pre-layer for the body.
+ *
+ * Not in the `@layer ce-token-colors` block above: the override needs to land
+ * in the unlayered cascade so its `!important` reliably beats Shiki's inline
+ * color across browsers (layered `!important` follows reversed-layer-order
+ * rules and could be defeated by a later layer's `!important`). */
+
+[data-kind="identifier"][data-binder-role="def_site"] {
+  color: var(--ce-token-binder-defsite) !important;
+}
+
+[data-kind="identifier"][data-binder-role="use_site"] {
+  color: var(--ce-token-binder-usesite) !important;
+}
+
+/* Non-identifier kinds. Same `!important` pattern, same rationale (beats
+ * Shiki's inline color). These apply to both surfaces that stamp `data-kind`:
+ * the file-body Shiki spans (via `ce-file-decorations.ts` passing
+ * `token.kind` through verbatim into `data-kind`) AND the panel's
+ * `TokenTreeView` spans (which stamp `data-kind={tag.kind}` directly). So a
+ * change to one of the `--ce-token-<slot>` mappings reaches both render
+ * paths through the same vocabulary — no body/panel drift on a per-kind
+ * color. `stdlib` additionally suppresses the click-cursor since stdlib
+ * tags are non-clickable (no in-CE def_id to anchor on). */
+[data-kind="string"] {
+  color: var(--ce-token-string) !important;
+}
+
+[data-kind="literal"] {
+  color: var(--ce-token-literal) !important;
+}
+
+[data-kind="op"] {
+  color: var(--ce-token-op) !important;
+}
+
+/* Notation-use atom (`loves`; `thinks`/`about`; built-in `∧`). Emitted by the
+ * validator's notation decomposition with a `qualified_name` = the head
+ * function, so it stays clickable through the same def_id-resolution path as an
+ * identifier (the click affordance comes from `.ce-identifier` in the body /
+ * `.sliceIdentifier` in the panel slice); this rule supplies only the distinct
+ * color, beating Shiki's inline color the same way the kinds above do. Applies
+ * across all three surfaces that stamp `data-kind` (file body, panel
+ * TokenTreeView, theorem-page author-view slice). */
+[data-kind="notation"] {
+  color: var(--ce-token-notation) !important;
+}
+
+/* `[data-kind="keyword"]`, `[data-kind="comment"]`, and `[data-kind="type"]`
+ * still have NO override rule here. The emission-completion amendment DOES
+ * now emit all three kinds in `source_tokens` (whole-file syntactic walk +
+ * Sort-valued classification) and they are STORED verbatim, but their
+ * body/panel coloring is FULLY deferred to a frontend follow-up PR. Until
+ * then, two read-path switches keep rendering byte-identical to the
+ * pre-amendment state — the follow-up flips both (no validator work):
+ *
+ *   1. Body decoration stamping (`buildDecorations` in
+ *      ce-file-decorations.ts): kind "type" is stamped as
+ *      data-kind="identifier" (preserving the binder-role def/use-site
+ *      colors above), and kinds "op" / "keyword" / "comment" stamp no
+ *      data-kind at all, so body rendering falls through to Shiki's
+ *      grammar. (Without that suppression the newly-emitted body `op`
+ *      tokens would hit the pre-existing `[data-kind="op"]` rule above,
+ *      which exists for the PANEL's TokenTreeView op tags.)
+ *   2. The API resolver's `rewriteStdlibKind` (decl_envelope.go) treats
+ *      kind "type" like "identifier": an unresolved stdlib type name
+ *      (`Nat`, `String`) presents as kind "stdlib" on the wire — keeping
+ *      the muted `[data-kind="stdlib"]` treatment below — while the
+ *      stored kind stays "type" in the DB. The follow-up relaxes the
+ *      rewrite back to identifier-only.
+ *
+ * When the follow-up lands, it also adds the NEW rules — semantic
+ * `[data-kind="..."]` overrides for the new kinds alongside
+ * `[data-kind="op"]`, plus any `[data-token-role="..."]` rules keyed on
+ * the validator's per-token role stamp. */
+
+[data-kind="stdlib"] {
+  color: var(--ce-token-stdlib) !important;
+  cursor: default !important;
+}

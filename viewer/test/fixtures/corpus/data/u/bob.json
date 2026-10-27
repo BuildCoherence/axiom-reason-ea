@@ -1,0 +1,379 @@
+{
+  "profile": {
+    "username": "bob",
+    "coverage_proposition_ids": [],
+    "latest_user_axioms": null,
+    "inconsistency": null
+  },
+  "held_propositions": {
+    "popularity": {
+      "items": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "graph_slice": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "total": 1
+    },
+    "unpopularity": {
+      "items": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "graph_slice": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "total": 1
+    },
+    "controversy": {
+      "items": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "graph_slice": [
+        {
+          "proposition_id": "q0000002",
+          "representative": {
+            "def_id": "e0000001",
+            "name": "everyone_kind",
+            "source": "theorem"
+          },
+          "p": {
+            "author": null,
+            "empty": {
+              "node": "append",
+              "children": [
+                {
+                  "node": "tag",
+                  "tag": {
+                    "kind": "identifier",
+                    "text": "Kind",
+                    "qualified_name": "Ethics.Kind",
+                    "def_id": "k0000001",
+                    "token_id": "t23",
+                    "hover_kind": "const",
+                    "binder_role": null,
+                    "inlined_type_summary": null
+                  },
+                  "child": {
+                    "node": "text",
+                    "text": "Kind"
+                  }
+                },
+                {
+                  "node": "text",
+                  "text": " p"
+                }
+              ]
+            }
+          },
+          "supports": [
+            {
+              "premise_axiom_ids": [
+                "g0000001"
+              ],
+              "premises": [],
+              "representative": {
+                "def_id": "e0000001",
+                "name": "everyone_kind",
+                "source": "theorem"
+              }
+            }
+          ],
+          "adopters": 2,
+          "rejecters": 0,
+          "over_determined": false,
+          "has_theorem_page": true,
+          "created_at": "2026-09-02T11:00:00Z",
+          "acknowledgements": {
+            "acknowledged_undecided": 0
+          }
+        }
+      ],
+      "total": 1
+    }
+  }
+}

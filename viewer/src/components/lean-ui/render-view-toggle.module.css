@@ -1,0 +1,137 @@
+/* RenderViewToggle — the shared author/empty syntax toggle (display copy
+ * "Author's" / "Universal"; the underlying `ViewChoice.kind` stays
+ * "author" / "empty"). This stylesheet is a pure VISUAL restyle to a single
+ * connected SEGMENTED PILL with a thumb that slides under the selected cell.
+ * The ARIA semantics (radiogroup / role="radio" / roving tabindex /
+ * Arrow-Home-End) live in render-view-toggle.tsx and are unchanged.
+ *
+ * Self-contained on purpose: every visual rule (label, track, thumb, options)
+ * is keyed to a module-local class so the control renders correctly regardless
+ * of the caller's `className` — which composes onto the OUTER container for
+ * layout / placement only. Theme-tracking via the Base16 custom properties,
+ * matching the rest of the lean-ui surfaces. */
+
+/* Outer container — lays out the baked-in visible "Syntax" label beside the
+ * pill. The caller's `className` composes onto this element for placement
+ * (margins, min-width, status-bar flex behaviour, …). */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* Baked-in visual axis label. Rendered `aria-hidden` in the markup — the
+ * radiogroup's `aria-label` (the caller's context-qualified name, e.g.
+ * "Page syntax") carries the accessible name, so exposing the visible text to
+ * AT as well would double-label the group. */
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--base04);
+  white-space: nowrap;
+}
+
+/* The segmented pill — this element is the role="radiogroup". Two equal-width
+ * grid cells (`1fr 1fr`, sized to the wider label so the thumb travel is
+ * symmetric) with `position: relative` anchoring the absolutely-positioned
+ * thumb. The author-view (`kind: "author"`) sits in cell 1, the universal /
+ * empty view (`kind: "empty"`) in cell 2. */
+.pill {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, 1fr);
+  align-items: stretch;
+  padding: 3px;
+  border-radius: 9999px;
+  /* Track fill — overridable per surface via `--syntax-toggle-bg`. Defaults to
+   * the subtle `--base01` (reads well on the white side-panel / profile
+   * surfaces); the Theorem footer sits on a grey status bar and overrides it to
+   * `--base00` (white) so the pill doesn't blend in. */
+  background-color: var(--syntax-toggle-bg, var(--base01));
+  border: 1px solid var(--base02);
+}
+
+/* The sliding thumb. Sized to exactly one cell — `calc(50% - 3px)` backs out
+ * the 3px track padding so `translateX(100%)` lands it precisely over the
+ * second cell. Presentational (`aria-hidden`), never a click/focus target. */
+.thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 9999px;
+  background-color: var(--base0D);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--base05) 18%, transparent);
+  transition: transform 180ms ease;
+  pointer-events: none;
+}
+
+/* `empty` ("Universal") is the second cell — slide the thumb right. The
+ * default (author) resting position is translateX(0). */
+.pill[data-selected-kind="empty"] .thumb {
+  transform: translateX(100%);
+}
+
+/* Each option (role="radio") — a transparent cell whose label rides ABOVE the
+ * thumb (`z-index: 1`). Equal-width via the grid track; centred text. */
+.option {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  /* Column flex so the visible label and the bold-width ghost (`::after`)
+   * stack; `align-items: center` keeps the label centred over the thumb. */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.2rem 0.7rem;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--base04);
+  transition: color 180ms ease;
+}
+
+/* Reserve the BOLD width for every option so selecting one (which bolds its
+ * label, below) never changes the cell width and jolts the pill. The ghost
+ * carries the bold label at zero height — it contributes width only. */
+.option::after {
+  content: attr(data-label);
+  font-weight: 600;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Selected option — text flips to the primary-foreground slot (`--base00`) for
+ * contrast against the accent thumb, mirroring the prior shadcn `default`
+ * button variant. */
+.option[aria-checked="true"] {
+  color: var(--base00);
+  font-weight: 600;
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Gate the slide (and the colour cross-fade) behind reduced-motion — the thumb
+ * snaps to the selected cell with no animation. Matches the codebase
+ * convention (see side-panel.module.css `.chevron`). */
+@media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .option {
+    transition: none;
+  }
+}

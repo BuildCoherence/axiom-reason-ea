@@ -1,0 +1,8 @@
+/dist/
+# release.yml writes the GitHub Version Feed and the tarballs here.
+/.release/
+# A `go build ./cmd/axm` at the root; anchored so cmd/axm/ stays tracked.
+/axm
+/axm.exe
+/result
+.direnv/

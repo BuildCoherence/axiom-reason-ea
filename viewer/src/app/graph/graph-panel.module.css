@@ -1,0 +1,56 @@
+/* Container chrome for the /graph panel host.
+ *
+ * Two jobs only: the mobile drawer's own box, and the ONE piece of suppression
+ * the `renderMobileContainer` hand-off leaves to the consumer.
+ */
+
+/* The handed-off pane (PanelShell's header + scrollable body) inside a
+ * container this file owns. It must be a flex COLUMN that can shrink — the
+ * pane's body is `flex: 1 1 auto; overflow-y: auto`, and without
+ * `min-height: 0` a flex item refuses to shrink below its content, so the
+ * container would scroll as a whole instead of scrolling the body. */
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ONE CLOSE CONTROL, AND IT IS THE SHELL'S.
+ *
+ * This block used to hide the handed-off pane's own "Close panel" button with
+ * an attribute selector on its `aria-label`, because the drawer rendered a
+ * `Drawer.Close` of its own above the pane. That gave the panel two rows of
+ * controls — an ✕ alone, then Back / Forward / "View in file" — and coupled
+ * this stylesheet to a string in a shared component.
+ *
+ * Both are gone. The drawer's close row was deleted and the shell keeps its
+ * own button (and its focus markers) via `hostSuppliesFocusMarker={false}`, so
+ * every control sits on the pane's one header row and nothing here needs to
+ * know what that button is called. */
+.drawerPane {
+  composes: pane;
+}
+
+/* The non-modal drawer. `modal={false}` means vaul renders no overlay at all,
+ * so this element is the entire surface: it carries its own background and
+ * border, or it would composite over the live canvas. `z-30` matches the
+ * profile workbench's lists drawer — above the canvas, below the app nav. */
+.drawer {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  /* The 0.95 snap point is the tallest the drawer goes; the element is sized
+   * once so snapping only translates it. */
+  height: 95%;
+  border-top: 1px solid var(--base02);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background-color: var(--base00);
+  outline: none;
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 25%);
+}
+

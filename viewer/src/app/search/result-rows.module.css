@@ -1,0 +1,51 @@
+/* The formal-hero signature line: JuliaMono-forward, flush on the row surface,
+ * with a hover tint on the clickable inspect region only. */
+
+.hero {
+  min-width: 0;
+}
+
+.heroInteractive {
+  composes: hero;
+  border-radius: 6px;
+  cursor: pointer;
+  /* The inset widens the hover pill; the negative margin keeps layout still. */
+  padding: 3px 6px;
+  margin: -3px -6px;
+}
+
+.heroInteractive:hover {
+  background-color: var(--base01);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .heroInteractive {
+    transition: background-color 0.12s ease;
+  }
+}
+
+.heroInteractive:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.code {
+  display: block;
+  font-family:
+    "JuliaMono", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, Consolas, monospace;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--base05);
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* ShikiSlice emits `<pre class="shiki">` with the editor surface inline; the
+ * row owns the surface here. */
+.code :global(pre.shiki) {
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  white-space: normal;
+}

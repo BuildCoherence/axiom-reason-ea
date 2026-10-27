@@ -1,0 +1,40 @@
+/* Edge flow animation — the "flowing" enhancement on top of the static
+ * color+dash encoding (design: five-state flow machine, a11y/motion).
+ *
+ * SEMANTIC, NOT DECORATIVE: the flow encodes viewer-relative Adoption status,
+ * so every state MUST be distinguishable WITHOUT animation (color + dash +
+ * marker — see `waypoint-edge.tsx`). The marching-dash here is ENHANCEMENT
+ * only: it is applied solely inside `prefers-reduced-motion: no-preference`, so
+ * reduced-motion users get the full static meaning and never any motion. (We
+ * use the no-preference gate, not a `reduce` override, so it fails safe to "no
+ * animation" when the preference is unknown — the well-trodden pattern.)
+ *
+ * Only "flowing" strands/trunk animate. `dormant`, `blocked`, and `severed`
+ * are intentionally static — their meaning is "nothing is flowing here". */
+
+/* One full dash pattern (dash + gap) so the loop is seamless. The flowing dash
+ * pattern is set inline on the path (so the static no-motion read still shows a
+ * dashed-but-marching-capable line); the keyframe just shifts the offset by one
+ * pattern length. Negative offset marches in the source→target direction. */
+@keyframes edge-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* Reverse march (source-ward) — used by the optional reverse-red severed
+ * variant if it is ever switched on as primary (kept ready, see waypoint-edge). */
+@keyframes edge-flow-reverse {
+  to {
+    stroke-dashoffset: 16;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .flowing {
+    animation: edge-flow 0.9s linear infinite;
+  }
+  .flowingReverse {
+    animation: edge-flow-reverse 0.9s linear infinite;
+  }
+}

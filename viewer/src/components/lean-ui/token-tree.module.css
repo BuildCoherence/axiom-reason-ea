@@ -1,0 +1,187 @@
+/* Structured-token-tree renderer — see token-tree.tsx for the rendering
+ * contract this module styles.
+ *
+ * THEMING — every token colour resolves through the shared `--ce-token-<slot>`
+ * indirection declared in `token-colors.css` (imported via globals.css), which
+ * aliases the Base16 palette slots. Both this panel and the Shiki-decorated
+ * file body consume the SAME `--ce-token-*` vocabulary, so the two render
+ * paths cannot drift on a per-kind colour — change a slot's Base16 mapping in
+ * `token-colors.css` and both surfaces follow automatically. See the
+ * "Single shared syntax-color source" decision in
+ * the internal lean-ui-component doc (issue #756).
+ *
+ *   identifier  → --ce-token-identifier        (variables/use-sites)
+ *   keyword     → --ce-token-keyword           (keywords/storage)
+ *   op          → --ce-token-op                (operators read as text)
+ *   literal     → --ce-token-literal           (numbers/constants)
+ *   string      → --ce-token-string            (string literals)
+ *   stdlib      → --ce-token-stdlib            (resolver-classified stdlib refs)
+ *   comment     → --ce-token-comment           (comments / secondary)
+ *   whitespace  → inherit (no colour — preserve layout only)
+ *
+ * Identifier sub-styling — binder def-sites take --ce-token-binder-defsite
+ * (the function / decl-name slot Shiki's `entity.name.function` also uses) so a
+ * binding occurrence reads visually distinct from its uses. Stdlib references
+ * (those with no in-CE def_id) read in --ce-token-stdlib (muted) and carry
+ * no click cursor — the renderer suppresses their click handlers per the
+ * design's § "Tag placement".
+ */
+
+/* All tagged tokens are inline so the `append` fragment flows as one line
+ * of text. Operators and whitespace are styled but unfocusable. */
+.tag {
+  /* Reset any inherited interactive styling. The per-kind rules add it back
+   * where it belongs (identifier hover, etc.). */
+  background: none;
+  border: 0;
+  padding: 0;
+  /* Inline-block would create wrap discontinuities; bare inline preserves
+   * the source-shaped wrapping of the surrounding <pre>/flow. */
+}
+
+/* Plain-text leaves (`node: "text"` and the inert fallback). The wrapping
+ * <span> exists only so DOM tooling and tests can address every leaf
+ * uniformly — no own visual treatment. */
+.text {
+  background: none;
+}
+
+/* ---- Kind classes ---------------------------------------------------- */
+
+.kindIdentifier {
+  color: var(--ce-token-identifier);
+}
+
+.kindKeyword {
+  color: var(--ce-token-keyword);
+}
+
+.kindOp {
+  color: var(--ce-token-op);
+}
+
+.kindLiteral {
+  color: var(--ce-token-literal);
+}
+
+.kindString {
+  color: var(--ce-token-string);
+}
+
+.kindComment {
+  color: var(--ce-token-comment);
+  font-style: italic;
+}
+
+/* Dedicated stdlib slot — the API resolver rewrites unresolved
+ * qualified-name identifier tokens to `kind: "stdlib"`, so the panel
+ * TokenTreeView stamps `data-kind="stdlib"` and joins `.kindStdlib` via
+ * KIND_CLASS. Resolves to `--ce-token-stdlib` directly — the same slot
+ * the `.stdlib` JS-side class branch (def_id === null && qualified_name
+ * !== null) AND the file body's `[data-kind="stdlib"]` override rule in
+ * `token-colors.css` resolve to. All three paths converge on the same
+ * source of truth. `cursor: default` mirrors `.stdlib` so a stdlib tag is
+ * visibly non-navigable (no in-CE def_id to anchor on). */
+.kindStdlib {
+  color: var(--ce-token-stdlib);
+  cursor: default;
+}
+
+/* Sort-valued identifier heads (`Nat`, type formers) — the validator's
+ * emission-completion amendment classifies them `kind: "type"` in BOTH token
+ * pipelines, but type COLORING is fully deferred to a follow-up frontend PR
+ * (see the deferral note in token-colors.css). This class is therefore
+ * effectively DORMANT today: unresolved stdlib type names reach the panel as
+ * `kind: "stdlib"` (the API's wire-presentation rewrite → `.kindStdlib`), so
+ * only the rare resolved in-CE Sort-valued reference joins it via KIND_CLASS.
+ * Kept (rather than deleted) so `KIND_CLASS` stays total over the wire kind
+ * union; the follow-up wires it to the shared `--ce-token-type` slot as the
+ * live panel consumer (#756). */
+.kindType {
+  color: var(--ce-token-type);
+}
+
+.kindWhitespace {
+  /* Whitespace tokens preserve layout — no foreground colour, no decoration.
+   * Kept as a class so test selectors can still find them via [data-kind]. */
+  color: inherit;
+}
+
+/* ---- Identifier interactivity --------------------------------------- */
+
+/* In-CE identifiers (the renderer adds the `clickable` class only when
+ * `def_id` is non-null per the design's tag-placement rules). Subtle hover
+ * underline so the affordance reads as a link without competing with the
+ * surrounding tokens; `--ring` is the foundation's link/focus accent and
+ * already palette-tracking. */
+.clickable {
+  cursor: pointer;
+  /* Persistent affordance so "clickable" is not signalled by colour alone
+   * (WCAG 1.4.1). A subtle dotted underline reads as "interactive" at rest;
+   * hover/focus promote it to a solid underline. Kept low-contrast (the
+   * dotted style + thin line) so it doesn't compete with the token colour. */
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ring);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.clickable:focus-visible {
+  /* Foundation focus-ring convention — outline (not box-shadow) so it
+   * survives Windows High Contrast Mode (matches lean-code.module.css and
+   * button.tsx). */
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Stdlib / prelude references: a tagged identifier whose `def_id` is null.
+ * Slightly muted so the surface reads "no in-CE target here," and explicit
+ * cursor: default so the no-click affordance is visible at hover. */
+.stdlib {
+  /* `--ce-token-stdlib` is the muted-foreground slot (base04) — one step down
+   * from the default base05 — keeping the token legible while signalling
+   * "less navigable". Routed through the shared `--ce-token-*` vocabulary
+   * (token-colors.css) so the body and panel cannot drift on stdlib colour. */
+  color: var(--ce-token-stdlib);
+  cursor: default;
+}
+
+/* ---- Binder-role variants ------------------------------------------- */
+
+/* Def-sites (binders introduced by ∀/λ/let/match — `isBinder = true`) read
+ * in the function/decl-name slot the rest of the surface uses for binding
+ * positions. Pairs visually with Shiki's `entity.name.function` colouring
+ * in the source view, so author-view tokens for a decl's name match colour
+ * across the structured-token renderer and the source-byte renderer. */
+.binderDefSite {
+  color: var(--ce-token-binder-defsite);
+  font-style: normal;
+}
+
+/* Use-sites read in the foreground-blending use-site slot
+ * (`--ce-token-binder-usesite`) so dense source doesn't drown in highlighting
+ * — see token-colors.css. Routing through the shared slot keeps the panel
+ * and the body locked in step on use-site colour. */
+.binderUseSite {
+  color: var(--ce-token-binder-usesite);
+}
+
+/* Notation atoms (`A`, `∃`, `∧`, `loves`): a tag whose `qualified_name` the
+ * caller flagged as a notation head (derived from the decl's `source_tokens`,
+ * which classify notation atoms with kind "notation"). Colours through
+ * `--ce-token-notation` so a notation atom reads IDENTICALLY whether a node is
+ * rendered from source bytes (ShikiSlice) or from this delaborated tree — the
+ * single-classification-source fix for the notation-colour drift between the two
+ * renderers. Declared last so it wins over the kind / binder-role colour at equal
+ * specificity. */
+.kindNotation {
+  color: var(--ce-token-notation);
+}

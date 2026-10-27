@@ -1,0 +1,261 @@
+{
+  "created_at": "2026-09-02T11:00:00Z",
+  "file_content": "import A.a1b2c3d4\n\nopen Ethics\n\ntheorem everyone_kind (p : Person) : Kind p := golden_rule p\n",
+  "decl": {
+    "def_id": "e0000001",
+    "qualified_name": "everyone_kind",
+    "local_name": "everyone_kind",
+    "kind": "theorem",
+    "display_kind": "theorem",
+    "file_id": "b2c3d4e5",
+    "publisher": {
+      "username": "bob"
+    },
+    "byte_range": {
+      "start": 32,
+      "end": 92
+    },
+    "decl_sig_byte_range": {
+      "start": 32,
+      "end": 75
+    },
+    "decl_val_byte_range": {
+      "start": 75,
+      "end": 92
+    },
+    "type_tokens": {
+      "author": null,
+      "empty": {
+        "node": "append",
+        "children": [
+          {
+            "node": "text",
+            "text": "∀ (p : "
+          },
+          {
+            "node": "tag",
+            "tag": {
+              "kind": "identifier",
+              "text": "Person",
+              "qualified_name": "Ethics.Person",
+              "def_id": "p0000001",
+              "token_id": "t9",
+              "hover_kind": "const",
+              "binder_role": null,
+              "inlined_type_summary": null
+            },
+            "child": {
+              "node": "text",
+              "text": "Person"
+            }
+          },
+          {
+            "node": "text",
+            "text": "), "
+          },
+          {
+            "node": "tag",
+            "tag": {
+              "kind": "identifier",
+              "text": "Kind",
+              "qualified_name": "Ethics.Kind",
+              "def_id": "k0000001",
+              "token_id": "t10",
+              "hover_kind": "const",
+              "binder_role": null,
+              "inlined_type_summary": null
+            },
+            "child": {
+              "node": "text",
+              "text": "Kind"
+            }
+          },
+          {
+            "node": "text",
+            "text": " p"
+          }
+        ]
+      }
+    },
+    "value_tokens": null,
+    "source_tokens": [
+      {
+        "byte_start": 40,
+        "byte_end": 53,
+        "kind": "identifier",
+        "text": "everyone_kind",
+        "qualified_name": "everyone_kind",
+        "def_id": "e0000001",
+        "token_id": "s11",
+        "hover_kind": "const",
+        "binder_role": null,
+        "inlined_type_summary": null
+      },
+      {
+        "byte_start": 59,
+        "byte_end": 65,
+        "kind": "identifier",
+        "text": "Person",
+        "qualified_name": "Ethics.Person",
+        "def_id": "p0000001",
+        "token_id": "s12",
+        "hover_kind": "const",
+        "binder_role": null,
+        "inlined_type_summary": null
+      },
+      {
+        "byte_start": 69,
+        "byte_end": 73,
+        "kind": "identifier",
+        "text": "Kind",
+        "qualified_name": "Ethics.Kind",
+        "def_id": "k0000001",
+        "token_id": "s13",
+        "hover_kind": "const",
+        "binder_role": null,
+        "inlined_type_summary": null
+      },
+      {
+        "byte_start": 79,
+        "byte_end": 90,
+        "kind": "identifier",
+        "text": "golden_rule",
+        "qualified_name": "Ethics.golden_rule",
+        "def_id": "g0000001",
+        "token_id": "s14",
+        "hover_kind": "const",
+        "binder_role": null,
+        "inlined_type_summary": null
+      }
+    ]
+  },
+  "adoption": {
+    "premise_count": 1,
+    "adopter_count": 2
+  },
+  "dag": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "premise",
+        "settled": false,
+        "name": "golden_rule",
+        "proposition_id": "q0000001",
+        "adoptable": true,
+        "endcap_eligible": true,
+        "tokens": {
+          "author": null,
+          "empty": {
+            "node": "append",
+            "children": [
+              {
+                "node": "text",
+                "text": "∀ p : "
+              },
+              {
+                "node": "tag",
+                "tag": {
+                  "kind": "identifier",
+                  "text": "Person",
+                  "qualified_name": "Ethics.Person",
+                  "def_id": "p0000001",
+                  "token_id": "t20",
+                  "hover_kind": "const",
+                  "binder_role": null,
+                  "inlined_type_summary": null
+                },
+                "child": {
+                  "node": "text",
+                  "text": "Person"
+                }
+              },
+              {
+                "node": "text",
+                "text": ", "
+              },
+              {
+                "node": "tag",
+                "tag": {
+                  "kind": "identifier",
+                  "text": "Kind",
+                  "qualified_name": "Ethics.Kind",
+                  "def_id": "k0000001",
+                  "token_id": "t21",
+                  "hover_kind": "const",
+                  "binder_role": null,
+                  "inlined_type_summary": null
+                },
+                "child": {
+                  "node": "text",
+                  "text": "Kind"
+                }
+              },
+              {
+                "node": "text",
+                "text": " p"
+              }
+            ]
+          }
+        },
+        "holdings": {
+          "pro": 2,
+          "con": 1
+        },
+        "acknowledgements": {
+          "acknowledged_undecided": 0
+        }
+      },
+      {
+        "id": "n2",
+        "kind": "conclusion",
+        "settled": false,
+        "name": null,
+        "proposition_id": "q0000002",
+        "adoptable": true,
+        "endcap_eligible": true,
+        "tokens": {
+          "author": null,
+          "empty": {
+            "node": "append",
+            "children": [
+              {
+                "node": "tag",
+                "tag": {
+                  "kind": "identifier",
+                  "text": "Kind",
+                  "qualified_name": "Ethics.Kind",
+                  "def_id": "k0000001",
+                  "token_id": "t22",
+                  "hover_kind": "const",
+                  "binder_role": null,
+                  "inlined_type_summary": null
+                },
+                "child": {
+                  "node": "text",
+                  "text": "Kind"
+                }
+              },
+              {
+                "node": "text",
+                "text": " p"
+              }
+            ]
+          }
+        },
+        "holdings": {
+          "pro": 2,
+          "con": 0
+        },
+        "acknowledgements": {
+          "acknowledged_undecided": 0
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "n1",
+        "target": "n2"
+      }
+    ]
+  }
+}

@@ -1,0 +1,471 @@
+/* Tailwind v4 import */
+@import "tailwindcss";
+
+/* Shared syntax-token color layer for the Lean UI Component. Defines the
+ * `--ce-token-<slot>` CSS custom properties both render paths (Shiki-decorated
+ * file body and `TokenTreeView` panel) consume, plus the data-attribute color
+ * overrides that overrule Shiki's inline color for source-token-classified
+ * identifier spans. Imported early so its `@layer ce-token-colors` lands before
+ * any consumer's per-module CSS resolves. See
+ * the internal lean-ui-component doc and issue #756. */
+@import "../components/lean-ui/token-colors.css";
+
+/*
+ * Token architecture — see the internal axiom-web-theme-foundation doc
+ * § Token architecture.
+ *
+ * Two-layer indirection: Base16 16-slot palette values are declared per
+ * [data-theme][data-mode] block; the `@theme inline` block below aliases
+ * shadcn semantic tokens (--color-background, --color-primary, etc.) over
+ * those Base16 slots so Tailwind utilities (`bg-background`, `text-primary`,
+ * etc.) cascade-resolve to the active palette's slots.
+ *
+ * Per § Reduced motion: NO default `transition: background-color` /
+ * `transition: color` rule on root or body. Color-token transitions are
+ * deliberately ungated. Future amendments wanting a fade declare it under
+ * a `motion-safe:` variant.
+ *
+ * --ring is declared explicitly per palette (see § --ring is explicitly
+ * declared per palette) — not derived from --primary.
+ */
+
+/* ---------------------------------------------------------------------------
+ * 1. :root baseline — defense in depth.
+ *    Declares the Axiom-light values for all 16 base* slots + --ring + the
+ *    dot-grid variables. If the nonced pre-paint script fails entirely, the
+ *    page still renders the Axiom-light palette rather than browser defaults.
+ *    Per § Pre-paint script.
+ * ------------------------------------------------------------------------- */
+:root {
+  /* Backgrounds and foregrounds */
+  --base00: oklch(0.99 0.005 280); /* default background */
+  --base01: oklch(
+    0.96 0.008 280
+  ); /* lighter bg — status bars, line numbers, card surface */
+  --base02: oklch(0.9 0.01 280); /* selection bg, borders, subtle surfaces */
+  --base03: oklch(0.62 0.02 280); /* comments, invisibles, secondary text */
+  --base04: oklch(
+    0.45 0.02 280
+  ); /* dark foreground — status bars, muted text */
+  --base05: oklch(0.2 0.02 280); /* default foreground */
+  --base06: oklch(0.14 0.02 280); /* light foreground — rarely used */
+  --base07: oklch(0.08 0.02 280); /* lightest foreground — rarely used */
+
+  /* Accents */
+  --base08: oklch(0.55 0.22 25); /* red — variables, errors */
+  --base09: oklch(0.62 0.17 55); /* orange — integers, constants */
+  --base0A: oklch(0.68 0.15 85); /* yellow — classes, warnings */
+  --base0B: oklch(0.55 0.16 145); /* green — strings, additions */
+  --base0C: oklch(0.6 0.12 200); /* cyan — regex, escape sequences */
+  --base0D: oklch(
+    0.582 0.245 277
+  ); /* blue — Axiom purple #655af5, functions/methods/headings */
+  --base0E: oklch(0.55 0.22 320); /* magenta — keywords, deletions */
+  --base0F: oklch(0.5 0.11 50); /* brown — deprecated */
+
+  /* Focus ring — explicit per palette, not derived from --primary */
+  --ring: oklch(0.582 0.245 277);
+
+  /* Dot-grid motif tunables */
+  --dot-color: var(--base02);
+  --dot-spacing: 24px;
+
+  /* Height of the fixed site header: the archive banner plus the nav bar.
+   * Published here on :root so portaled surfaces (e.g. the CE file side
+   * panel, which Radix portals to <body>) can offset themselves below it;
+   * components/site-nav.tsx sizes the header from these vars. */
+  --ce-banner-height: 1.75rem;
+  --ce-nav-height: calc(3.5rem + var(--ce-banner-height));
+
+  /* Floating-card elevation — the soft two-layer shadow that lifts a solid
+   * surface off the dot-grid canvas (the v3 "destination page" feel). Defined
+   * once here so every over-the-grid surface (the /search section cards + hero
+   * search bar, the type-head drill-in's `.card`) shares ONE elevation. Uses
+   * `var(--base05)` lazily, so it resolves to the right per-mode foreground at
+   * the use site without a per-mode redeclaration. */
+  --shadow-float:
+    0 1px 2px color-mix(in oklab, var(--base05) 7%, transparent),
+    0 5px 16px color-mix(in oklab, var(--base05) 5%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. Per-palette per-mode blocks. v1 ships only [data-theme="axiom"].
+ *    Additional palettes are appended here when their designs land.
+ * ------------------------------------------------------------------------- */
+
+/* Axiom — light mode */
+[data-theme="axiom"][data-mode="light"] {
+  --base00: oklch(0.99 0.005 280);
+  --base01: oklch(0.96 0.008 280);
+  --base02: oklch(0.9 0.01 280);
+  --base03: oklch(0.62 0.02 280);
+  --base04: oklch(0.45 0.02 280);
+  --base05: oklch(0.2 0.02 280);
+  --base06: oklch(0.14 0.02 280);
+  --base07: oklch(0.08 0.02 280);
+
+  --base08: oklch(0.55 0.22 25);
+  --base09: oklch(0.62 0.17 55);
+  --base0A: oklch(0.68 0.15 85);
+  --base0B: oklch(0.55 0.16 145);
+  --base0C: oklch(0.6 0.12 200);
+  --base0D: oklch(0.582 0.245 277);
+  --base0E: oklch(0.55 0.22 320);
+  --base0F: oklch(0.5 0.11 50);
+
+  --ring: oklch(0.582 0.245 277);
+}
+
+/* Axiom — dark mode */
+[data-theme="axiom"][data-mode="dark"] {
+  --base00: oklch(0.15 0.015 280); /* near-black background */
+  --base01: oklch(0.2 0.018 280); /* slightly lighter bg — cards, popovers */
+  --base02: oklch(0.3 0.02 280); /* borders, selection, subtle surfaces */
+  --base03: oklch(0.5 0.02 280); /* comments, secondary text */
+  --base04: oklch(0.7 0.015 280); /* muted foreground */
+  --base05: oklch(0.92 0.01 280); /* default foreground */
+  --base06: oklch(0.96 0.008 280); /* light foreground — rarely used */
+  --base07: oklch(0.99 0.005 280); /* lightest foreground — rarely used */
+
+  --base08: oklch(0.72 0.18 25); /* red */
+  --base09: oklch(0.76 0.15 55); /* orange */
+  --base0A: oklch(0.85 0.14 85); /* yellow */
+  --base0B: oklch(0.75 0.17 145); /* green */
+  --base0C: oklch(0.78 0.11 200); /* cyan */
+  --base0D: oklch(0.622 0.23 280); /* Axiom purple #746afb */
+  --base0E: oklch(0.72 0.2 320); /* magenta */
+  --base0F: oklch(0.65 0.11 50); /* brown */
+
+  --ring: oklch(0.622 0.23 280);
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. Tailwind v4 @theme inline — alias layer.
+ *
+ *    `inline` is the v4 directive that lets these alias values reference
+ *    other CSS variables (e.g. var(--base00)); bare `@theme` would inline
+ *    literal values and break the cascade resolution against the active
+ *    palette.
+ *
+ *    Aliases follow the Base16 spec verbatim:
+ *      --background -> base00, --foreground -> base05,
+ *      --destructive -> base08. The one notable design call is
+ *      --primary -> base0D (per § Decisions § --primary -> base0D).
+ *
+ *    Chart and sidebar token mappings are intentionally omitted — they're
+ *    deferred to the designs that introduce those components.
+ * ------------------------------------------------------------------------- */
+@theme inline {
+  /* Semantic surface tokens (shadcn) */
+  --color-background: var(--base00);
+  --color-foreground: var(--base05);
+
+  --color-card: var(--base01);
+  --color-card-foreground: var(--base05);
+
+  --color-popover: var(--base01);
+  --color-popover-foreground: var(--base05);
+
+  --color-primary: var(--base0D);
+  --color-primary-foreground: var(--base00);
+
+  --color-secondary: var(--base02);
+  --color-secondary-foreground: var(--base05);
+
+  --color-muted: var(--base02);
+  --color-muted-foreground: var(--base04);
+
+  --color-accent: var(--base02);
+  --color-accent-foreground: var(--base05);
+
+  --color-destructive: var(--base08);
+  --color-destructive-foreground: var(--base00);
+
+  /* --color-border, --color-input → base03 (mid-luminance) rather than
+   * base02 — base02 is the subtle-surface slot (muted/accent/secondary),
+   * and base02-on-base00/base01 cannot meet WCAG 1.4.11 ≥3:1 against the
+   * high-extreme background slots (only ~1.2-1.4:1 ratio). base03 is the
+   * Base16 "comments / invisibles" slot — mid-luminance, with enough
+   * contrast headroom against the background tier. */
+  --color-border: var(--base03);
+  --color-input: var(--base03);
+  --color-ring: var(--ring);
+
+  /* Fonts — CSS variables are declared by next/font/local in
+   * axiom/web/src/app/fonts.ts. Fallbacks follow conventional system stacks
+   * (per § Fonts). Brand falls through to sans. */
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-julia-mono), ui-monospace, monospace;
+  /* Serif — PT Serif, the DEFAULT serif: what any surface gets unless it opts
+   * in below. See axiom-web-theme-foundation.md § Fonts. */
+  --font-serif: var(--font-pt-serif), Georgia, serif;
+  /* Brand serif — Libre Baskerville, OPT-IN via `font-brand-serif`, landing
+   * page only. It is declared with `size-adjust: 87.1%` (see fonts.ts) so it
+   * occupies the same space as PT Serif at the same `font-size`; without that
+   * it sets ~15% wider and reflows any surface it reaches. Kept in its own slot
+   * so it cannot reach one that has not been designed for it. Distinct from
+   * `--font-brand` (Commissioner, wordmark only) below. */
+  --font-brand-serif: var(--font-libre-baskerville), Georgia, serif;
+  --font-brand:
+    var(--font-commissioner), var(--font-dm-sans), system-ui, -apple-system,
+    sans-serif;
+}
+
+/* Paint the root element with the page background. The background is also on
+ * <body> (bg-background), but body is only as tall as its content — so on
+ * mobile, scrolling past the end / overscroll-rubber-banding (and any gap when
+ * content is shorter than the viewport) exposed the browser-default canvas and
+ * the background appeared to "stop." The ROOT element's background fills the
+ * entire canvas including the overscroll region, which is the canonical fix.
+ * Layout-neutral: adds no height, so it does not shift any screenshot baseline.
+ * See https://css-tricks.com/just-one-of-those-weird-things-about-css-background-on-body/. */
+html {
+  background-color: var(--color-background);
+
+  /* Keep the permanently-fixed global nav from covering whatever the browser
+   * scrolls to. The nav is `position: fixed` on every (app) route, so it is out
+   * of flow and the browser's scroll-into-view logic — used for both in-page
+   * anchors and for focusing an off-screen control — has no knowledge of it and
+   * will happily land a target underneath the bar. Reserving the bar's height
+   * as scroll padding is W3C sufficient technique C43 for WCAG 2.2 SC 2.4.11
+   * (Focus Not Obscured); without it, tabbing to any control shorter than the
+   * bar can leave it entirely hidden (failure F110).
+   *
+   * Uses the same `--ce-nav-height` that sizes the fixed header. */
+  scroll-padding-top: var(--ce-nav-height);
+}
+
+/* Fixed workbenches own the shared footer's placement inside their one
+ * content scroller. Keep the layout footer out of the accessibility tree and
+ * constrain the chrome column so its main slot absorbs the nav/banner space. */
+.app-chrome:has([data-workbench-footer-owner="true"]) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-chrome:has([data-workbench-footer-owner="true"]) > [data-layout-footer="true"] {
+  display: none;
+}
+
+/* `touch-action: manipulation` on every interactive control removes the
+ * 300 ms tap delay iOS Safari adds for double-tap-to-zoom on non-pinch
+ * inputs. Visitor taps register immediately on buttons / role=button /
+ * anchors — meaningful for the file-page palette items, identifier
+ * spans, status-bar affordances, side-panel close. Pinch-zoom on the
+ * source body and other text content still works (this only narrows
+ * the tap-recognition window for controls). */
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
+}
+
+/* Global text-link affordance.
+ *
+ * Tailwind's preflight resets anchors to `color: inherit; text-decoration:
+ * inherit`, so a bare link reads as plain body text — the recurring "links
+ * don't look like links" problem, which otherwise has to be re-solved with a
+ * copy-pasted `hover:underline` on every link. Give every in-content TEXT link
+ * a hover underline once, here, site-wide.
+ *
+ * Lives in @layer base so any utility (e.g. Tailwind `hover:no-underline`) still
+ * wins, and scoped to leave NON-text anchors alone:
+ *   - [data-slot="button"] — links styled as buttons (shadcn Button `asChild`).
+ *   - :has(img, svg)       — logo / icon / media wrappers (an underline would
+ *                            sit under the image).
+ *   - .no-link-underline   — explicit opt-out for text-free wrappers CSS can't
+ *                            detect by content (e.g. the initials-avatar link,
+ *                            which renders a <span>, not an <img>).
+ *
+ * `@media (hover: hover)` so touch devices don't get a sticky underline after a
+ * tap. underline-offset matches the components' `underline-offset-4` idiom. */
+@layer base {
+  @media (hover: hover) {
+    a[href]:hover:not([data-slot="button"]):not(.no-link-underline):not(
+        :has(img, svg)
+      ) {
+      text-decoration-line: underline;
+      text-underline-offset: 4px;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. Dot-grid utility.
+ *    Per § Dot-grid motif. Radial gradient of 1px dots; --dot-color and
+ *    --dot-spacing are tunable per-surface via the cascade. Authenticated
+ *    layouts wrap their main content in <div class="dot-grid">; public
+ *    layouts do not.
+ * ------------------------------------------------------------------------- */
+.dot-grid {
+  background-image: radial-gradient(
+    circle,
+    var(--dot-color) 1px,
+    transparent 1px
+  );
+  background-size: var(--dot-spacing) var(--dot-spacing);
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. Shiki Lean highlighting — no dark-mode swap needed.
+ *    The Lean source renderer (src/components/lean-ui/lean-code.tsx) uses a
+ *    single Base16 theme (base16-shiki-theme.ts) whose token colours are
+ *    `var(--base0X)` references. Those resolve against the active
+ *    `[data-theme][data-mode]` block at paint time, so light/dark (and future
+ *    palette swaps) are handled by the existing Base16 variables — there is no
+ *    per-mode `.shiki` override to maintain here.
+ * ------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+ * 7. Reduced-motion: force [data-motion] elements to visible end-state.
+ *    Framer Motion components on the landing page (src/components/landing/
+ *    animated-section.tsx) use a
+ *    `whileInView` gate that starts elements at opacity:0 + translateY and
+ *    transitions to opacity:1 + translateY:0 when they enter the viewport.
+ *    For users who prefer reduced motion, that gate is the wrong default:
+ *    they'd never see entrance animations anyway, and any client whose
+ *    IntersectionObserver doesn't fire (older browsers, edge cases) would
+ *    see sections below the fold at opacity:0 indefinitely — failing
+ *    WCAG 2.3.3 and creating a "blank below fold" experience.
+ *
+ *    This rule mirrors the test fixture at test/shared/suppress-animations.mjs:
+ *    when `prefers-reduced-motion: reduce` is set, any element marked
+ *    `data-motion` (the convention every motion element on the landing page
+ *    carries) snaps to its visible end-state. CSS `!important` wins over
+ *    Framer Motion's inline `style="opacity: 0; transform: translateY(…)"`.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-motion] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. Landing-page decorative animations.
+ *    Ported from the landing-page mockup's Tailwind keyframes. Purely
+ *    decorative (the ambient hero glow, the why-code flow-path dash motion),
+ *    so all are disabled under prefers-reduced-motion at the bottom.
+ * ------------------------------------------------------------------------- */
+@keyframes illuminate {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+.illumination-glow {
+  animation: illuminate 10s ease-in-out infinite;
+}
+
+@keyframes float-cute {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(3deg);
+  }
+}
+.float-cute {
+  animation: float-cute 6s ease-in-out infinite;
+}
+
+/* Why-code values flow: the active strand's marching-ants dash. The path sets
+ * its own stroke-dasharray; this only animates the offset so the dashes flow
+ * toward the conclusion. */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.flow-strand-active {
+  animation: flow-dash 1s linear infinite;
+}
+
+/* Roadmap progression rail: static dotted connectors between Platonic solids. */
+.roadmap-flow-x {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-primary) 0 7px,
+    transparent 7px 13px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .illumination-glow,
+  .float-cute,
+  .flow-strand-active {
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Focus mode chrome hiding — the file viewer's `f` hotkey (see
+ * components/lean-ui/use-focus-mode.ts + ce-file-body.tsx's hotkey
+ * binding) stamps `data-focus-mode="true"` on `<html>` when the visitor
+ * opts into focus mode. We hide the global nav and the marketing footer
+ * via the attribute selector below so the workbench becomes the only
+ * visible page chrome, with normal browser behaviour preserved (tabs /
+ * address bar stay; no ESC-to-exit modality).
+ *
+ * The nav selector matches by `aria-label="Global"` (set in components/
+ * global-nav/global-nav.tsx); the footer selector is plain `footer` since
+ * the chrome's `<Footer/>` is the only `<footer>` in the (app) layout
+ * tree. The `[data-workbench="true"]` rule lifts the file route's
+ * workbench wrapper above the nav-height offset so the body fills the
+ * full viewport.
+ *
+ * SCOPED TO WORKBENCH ROUTES via `:has([data-workbench="true"])`. The
+ * `data-focus-mode` attribute lives on `<html>` and persists across
+ * client-side navigation, but only the workbench routes (file viewer +
+ * profile) carry a focus-mode exit affordance (the status bars'
+ * `FocusModeButton`; the file route also binds `f`). Without the scope, a
+ * visitor who toggled focus mode and then navigated to a non-workbench
+ * route (home, search, …) would see the nav hidden with NO affordance to
+ * restore it. With it, focus mode is simply inert off the workbench —
+ * the chrome reappears, and the persisted preference still applies the
+ * next time a workbench route is open. (`:has()` is Baseline-available
+ * in all evergreen browsers; where unsupported the selector never
+ * matches, which fails in the safe direction — chrome stays visible.)
+ *
+ * No effect when focus mode is off — the data-attribute is absent and the
+ * selectors don't match.
+ * ------------------------------------------------------------------------- */
+[data-focus-mode="true"]:has([data-workbench="true"]) nav[aria-label="Global"],
+[data-focus-mode="true"]:has([data-workbench="true"]) footer {
+  display: none !important;
+}
+[data-focus-mode="true"] [data-workbench="true"] {
+  top: 0 !important;
+}
+
+/* Lift the 920 px reading-column cap on the source body when focus mode is
+ * active. The reading column lives in `axiom/web/src/components/lean-ui/
+ * ce-file-body.module.css` (`.mainColumn { max-width: 920px }`) and exists
+ * so prose-style reading on a wide monitor isn't an eyeball-tennis match;
+ * but in focus mode the visitor explicitly asked for the code to fill the
+ * screen, and a 920 px column inside a 1600 px workbench reads as "boxed
+ * in," NOT as fullscreen. Dropping the cap (and the auto margins that
+ * centred the column) lets the source body span the workbench's full
+ * width. The 1 rem horizontal padding stays so the code doesn't kiss the
+ * viewport edge.
+ *
+ * Selector reaches `.mainColumn` through CSS-Module hashing: the class
+ * lives in a `.module.css` file so its emitted name is hashed (e.g.
+ * `ce-file-body_mainColumn__abc12`). Targeting it from globals.css would
+ * normally need the hash, but the hashed class still STARTS with the
+ * original name — so `[class*="mainColumn"]` matches without coupling to
+ * the exact hash. Defensive: scoped to the focus-mode root + the
+ * workbench root so this rule cannot affect any other surface that
+ * happens to have a class containing "mainColumn".
+ * ------------------------------------------------------------------------- */
+[data-focus-mode="true"] [data-workbench="true"] [class*="mainColumn"] {
+  max-width: none !important;
+  margin-inline: 0 !important;
+}

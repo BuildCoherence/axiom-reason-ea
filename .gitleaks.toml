@@ -1,0 +1,18 @@
+# Read by scripts/prepublication-gate (gitleaks leg). Each allowlist names one
+# reviewed false positive by path and matched text; a corpus/A ruling is added the same way.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Prose comment: 'Key-addressable' is not an API key"
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)viewer/src/components/footer-legal-links\.ts$''']
+regexes = ['''Key-addressable: signup/clickwrap''']
+
+[[allowlists]]
+description = "corpus-gate test fixture: a fake Firebase-uid-shaped token the PII check must catch"
+condition = "AND"
+regexTarget = "match"
+paths = ['''(^|/)scripts/corpus-gate/gate_test\.go$''']
+regexes = ['''Xq3ZbK9mWfPtR2sLvN8cYd4HgJ1e''']

@@ -1,0 +1,121 @@
+/* Sigma CONTROLS theming for the profile force-graph.
+ *
+ * @react-sigma's `style.css` ships a white control card with black icons, 30px
+ * cells and grey dividers — driven by `--sigma-controls-*` custom properties on
+ * `:root`. We re-skin it to match the THEOREM page's flowchart controls
+ * (flowchart-rf.module.css): a base16-themed card of evenly-gapped rounded
+ * squares. Everything is base16 (var(--base00)..var(--base0F)) so it tracks the
+ * app's `data-mode` toggle + community-palette swap — NO hardcoded hex
+ * (the internal nextjs-styling-and-component-stack doc).
+ *
+ * Scoping: `<ControlsContainer className={styles.controls}>` renders
+ * `<div class="react-sigma-controls {controls} bottom-right">`, so the local
+ * `.controls` class selects that div directly; descendant `:global(...)` rules
+ * reach the library's per-cell wrappers/buttons. A CSS-module rule must contain
+ * a local class to be "pure" (a bare `:global` rule is rejected) — `.controls`
+ * provides it and scopes every override to THIS control card.
+ */
+
+.controls {
+  /* Re-point @react-sigma's own control variables at our themed values so even
+     un-overridden bits (e.g. the container's background/border tokens) match. */
+  --sigma-controls-size: 24px;
+  --sigma-controls-margin: 8px;
+  --sigma-controls-background-color: transparent;
+  --sigma-controls-background-color-hover: color-mix(in oklch, var(--base05) 9%, transparent);
+  --sigma-controls-border-color: transparent;
+  --sigma-controls-color: var(--base05);
+
+  /* The card itself — a compact single column, matching the theorem controls.
+     Position (absolute, bottom-right inset) comes from the library's
+     `.react-sigma-controls{.bottom-right}` rules; we only restyle the surface. */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--base02);
+  border-radius: 9px;
+  background-color: var(--base00);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--base05) 10%, transparent),
+    0 4px 12px color-mix(in oklch, var(--base05) 8%, transparent);
+}
+
+/* Mobile (< 768px): the non-modal bottom sheet (D11) overlaps the bottom of the
+   graph, occluding the bottom-left controls. Rather than a static lift, the card
+   RIDES the sheet — Google-Maps style — staying a fixed 12px gap above the
+   sheet's LIVE top edge as it is dragged or snapped, on every viewport size.
+   `useControlsSheetLock` (use-controls-sheet-lock.ts) observes the Vaul drawer's
+   top edge each frame during an interaction and publishes the correct `bottom`
+   offset — measured from THIS card's positioning container, so it's right even
+   when an inconsistency strip shortens the graph — as the `--controls-sheet-bottom`
+   px value on :root. We consume it here; the `8rem` fallback holds before the
+   hook attaches (and on desktop, where the var is never set). The library
+   positions this element with `bottom`, so we override it (mobile only). */
+@media (max-width: 767px) {
+  .controls {
+    bottom: var(--controls-sheet-bottom, 8rem) !important;
+  }
+}
+
+/* The library flattens the bottom corners (2px) for its bottom-anchored variant,
+   but the card FLOATS above the graph's edge (and, on mobile, the sheet), so
+   re-round the bottom to match the top. `!important` beats the library's
+   higher-specificity `.bottom-left` rule. Applies on every viewport. */
+.controls {
+  border-bottom-left-radius: 9px !important;
+  border-bottom-right-radius: 9px !important;
+}
+
+/* Each control cell (the 3 zoom buttons + our labels toggle). Drop the library's
+   per-cell bottom divider so the cells read as one evenly-gapped stack. */
+.controls :global(.react-sigma-control) {
+  width: var(--sigma-controls-size);
+  height: var(--sigma-controls-size);
+  line-height: var(--sigma-controls-size);
+  background-color: transparent;
+  border-bottom: none;
+}
+
+/* One consistent rounded transparent square per button (base16 hover + focus). */
+.controls :global(.react-sigma-control) > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--sigma-controls-size);
+  height: var(--sigma-controls-size);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--base05);
+  cursor: pointer;
+  /* The ZoomControl's stock SVGs are real inline icons; size them via font-size
+     because they're authored at `width: 1em` (an inline style we can't beat from
+     a stylesheet). 14px ≈ the lucide toggle's `size={14}`, so all four match. */
+  font-size: 14px;
+  /* The library hides its default glyphs with `clip: rect(0,0,0,0)` (inert here
+     since the button isn't positioned, but clear it so nothing is ever clipped). */
+  clip: auto;
+}
+.controls :global(.react-sigma-control) > button:hover {
+  background-color: color-mix(in oklch, var(--base05) 9%, transparent);
+}
+.controls :global(.react-sigma-control) > button:focus-visible {
+  outline: 2px solid var(--base0D);
+  outline-offset: -1px;
+}
+
+/* Icon glyphs. BOTH families colour from `currentColor` (= the button's
+   `--base05`): the stock zoom SVGs paint with `fill="currentColor"`, the lucide
+   toggle with `stroke="currentColor"` — so DON'T force `fill` here (that would
+   solid-fill the stroke-only lucide glyphs). The zoom SVGs carry an inline
+   `width: 1em` we can't beat from a stylesheet, hence the 14px `font-size` on the
+   button; this `width/height` then matches the lucide icon to them. */
+.controls :global(.react-sigma-control) > button svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}

@@ -1,0 +1,104 @@
+{
+  "def": {
+    "decl": {
+      "def_id": "k0000001",
+      "qualified_name": "Ethics.Kind",
+      "local_name": "Kind",
+      "kind": "axiom",
+      "display_kind": "axiom",
+      "file_id": "a1b2c3d4",
+      "publisher": {
+        "username": "AliceSmith"
+      },
+      "byte_range": {
+        "start": 61,
+        "end": 89
+      },
+      "decl_sig_byte_range": {
+        "start": 61,
+        "end": 89
+      },
+      "decl_val_byte_range": null,
+      "type_tokens": {
+        "author": null,
+        "empty": {
+          "node": "append",
+          "children": [
+            {
+              "node": "tag",
+              "tag": {
+                "kind": "identifier",
+                "text": "Person",
+                "qualified_name": "Ethics.Person",
+                "def_id": "p0000001",
+                "token_id": "t3",
+                "hover_kind": "const",
+                "binder_role": null,
+                "inlined_type_summary": null
+              },
+              "child": {
+                "node": "text",
+                "text": "Person"
+              }
+            },
+            {
+              "node": "text",
+              "text": " → "
+            },
+            {
+              "node": "tag",
+              "tag": {
+                "kind": "type",
+                "text": "Prop",
+                "qualified_name": null,
+                "def_id": null,
+                "token_id": "t4",
+                "hover_kind": null,
+                "binder_role": null,
+                "inlined_type_summary": null
+              },
+              "child": {
+                "node": "text",
+                "text": "Prop"
+              }
+            }
+          ]
+        }
+      },
+      "value_tokens": null,
+      "source_tokens": [
+        {
+          "byte_start": 67,
+          "byte_end": 71,
+          "kind": "identifier",
+          "text": "Kind",
+          "qualified_name": "Ethics.Kind",
+          "def_id": "k0000001",
+          "token_id": "s5",
+          "hover_kind": "const",
+          "binder_role": null,
+          "inlined_type_summary": null
+        }
+      ]
+    },
+    "source_lines": {
+      "start": 6,
+      "end": 6
+    },
+    "created_at": "2026-09-01T10:00:00Z",
+    "file_content": "namespace Ethics\n\n/-- A moral agent. -/\naxiom Person : Type\n\naxiom Kind : Person → Prop\n\naxiom golden_rule : ∀ p : Person, Kind p\n\nend Ethics\n",
+    "conclusion_prop": null,
+    "members": [],
+    "theorem_statement": null
+  },
+  "referenced_by": [
+    {
+      "def_id": "e0000001",
+      "qualified_name": "everyone_kind",
+      "local_name": "everyone_kind",
+      "kind": "theorem",
+      "display_kind": "theorem",
+      "file_id": "b2c3d4e5"
+    }
+  ]
+}

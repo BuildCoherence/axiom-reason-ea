@@ -1,0 +1,63 @@
+version: 2
+
+# The archive names below derive from this value, and `axm upgrade` and the
+# install scripts build the same names; changing it breaks every installed 2.x.
+project_name: axm
+
+before:
+  hooks:
+    # Fails the release unless the Go toolchain doing the build is at least the
+    # `toolchain` directive in go.mod.
+    - go run ./scripts/toolchain-floor
+
+builds:
+  - main: ./cmd/axm
+    binary: axm
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/BuildCoherence/axiom-reason-ea/v2/cmd.version={{ .Version }}
+
+archives:
+  # Windows gets `.zip` so install.ps1's Expand-Archive reads it natively.
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats: ["tar.gz"]
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "0.0.0-snapshot-{{ .ShortCommit }}"
+
+release:
+  draft: true
+  # A re-run of a failed release job on the same tag replaces its draft.
+  replace_existing_draft: true
+  replace_existing_artifacts: true
+  # Only a tag with a SemVer prerelease suffix (v2.0.1-rc.1) is a prerelease.
+  prerelease: auto
+  # release.yml writes the GitHub Version Feed, the site tarball and, on the
+  # Bridge Release tag, the corpus tarball here before GoReleaser runs.
+  extra_files:
+    - glob: ./.release/*
+    - glob: ./install/install.sh
+    - glob: ./install/install.ps1
+
+changelog:
+  sort: asc
