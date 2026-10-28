@@ -357,19 +357,40 @@ func TestCheckLakeInstalled(t *testing.T) {
 	}
 }
 
-func TestCheckLakeInstalledPresent(t *testing.T) {
-	// Build a PATH containing a directory with a dummy "lake" executable.
-	dir := t.TempDir()
+// writeFakeLake writes a fake `lake` into dir whose body is shScript on
+// Unix and cmdScript on Windows. Windows cannot run a #!/bin/sh file and
+// resolves `lake` through PATHEXT, so the shim there is a .cmd batch file.
+func writeFakeLake(t *testing.T, dir, shScript, cmdScript string) {
+	t.Helper()
 	lake := filepath.Join(dir, "lake")
+	script := "#!/bin/sh\n" + shScript
 	if runtime.GOOS == "windows" {
-		lake += ".exe"
+		lake += ".cmd"
+		script = cmdScript
 	}
-	if err := os.WriteFile(lake, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(lake, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestCheckLakeInstalledPresent(t *testing.T) {
+	// The fake lake records its arguments and exits 0, so the test fails
+	// unless the `lake --version` probe actually ran and succeeded.
+	dir := t.TempDir()
+	argsFile := filepath.Join(t.TempDir(), "probe-args")
+	writeFakeLake(t, dir,
+		"printf '%s' \"$*\" > '"+argsFile+"'\nexit 0\n",
+		"@echo %*> \""+argsFile+"\"\r\n@exit /b 0\r\n")
 	t.Setenv("PATH", dir)
 	if err := CheckLakeInstalled(context.Background()); err != nil {
 		t.Fatalf("CheckLakeInstalled err = %v, want nil", err)
+	}
+	got, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("fake lake did not run: %v", err)
+	}
+	if args := strings.TrimSpace(string(got)); args != "--version" {
+		t.Fatalf("fake lake args = %q, want %q", args, "--version")
 	}
 }
 
@@ -381,20 +402,10 @@ func TestCheckLakeInstalledPresent(t *testing.T) {
 func TestCheckLakeInstalled_ElanNoDefaultToolchain(t *testing.T) {
 	dir := t.TempDir()
 	// Mimic elan's stderr output verbatim (casing preserved; our matcher
-	// lower-cases both sides). Windows resolves `lake` to a batch file via
-	// PATHEXT, so the fake shim is a .cmd script there.
-	lake := filepath.Join(dir, "lake")
-	script := "#!/bin/sh\n" +
-		"echo 'error: no default toolchain configured' >&2\n" +
-		"exit 1\n"
-	if runtime.GOOS == "windows" {
-		lake += ".cmd"
-		script = "@echo error: no default toolchain configured 1>&2\r\n" +
-			"@exit /b 1\r\n"
-	}
-	if err := os.WriteFile(lake, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	// lower-cases both sides).
+	writeFakeLake(t, dir,
+		"echo 'error: no default toolchain configured' >&2\nexit 1\n",
+		"@echo error: no default toolchain configured 1>&2\r\n@exit /b 1\r\n")
 	t.Setenv("PATH", dir)
 	err := CheckLakeInstalled(context.Background())
 	if err == nil {
