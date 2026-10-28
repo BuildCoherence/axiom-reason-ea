@@ -1,0 +1,152 @@
+name: README quickstart
+
+# Runs the README's Quickstart lines as a new user would: install axm, create a
+# Workspace, edit a file, `axm check` it and serve `axm viewer`. The lines come
+# from README.md on the dispatched ref, so editing the README changes what runs.
+on:
+  workflow_dispatch:
+    inputs:
+      release-urls:
+        description: Install from the latest GitHub Release's install.sh and install.ps1 instead of https://install.axiom.computer
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  quickstart:
+    name: Quickstart (${{ matrix.os }}, ${{ matrix.install }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, install: readme }
+          - { os: macos-latest, install: readme }
+          - { os: windows-latest, install: readme }
+          # The real proof of the /v2 module path.
+          - { os: ubuntu-latest, install: go-install }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: Extract the Quickstart lines from README.md
+        shell: bash
+        env:
+          RELEASE_URLS: ${{ inputs.release-urls }}
+          OS_KIND: ${{ runner.os == 'Windows' && 'windows' || 'unix' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/quickstart"
+          ext="sh"
+          if [ "$OS_KIND" = windows ]; then ext="ps1"; fi
+          for part in install setup viewer; do
+            go run ./scripts/readme-quickstart -os "$OS_KIND" -part "$part" -release-urls="$RELEASE_URLS" \
+              > "$RUNNER_TEMP/quickstart/$part.$ext"
+            echo "$part: $(cat "$RUNNER_TEMP/quickstart/$part.$ext")"
+          done
+
+      # elan is a README prerequisite; its default install also sets a default toolchain.
+      - name: Install elan
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/v4.2.4/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Install elan
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://raw.githubusercontent.com/leanprover/elan/v4.2.4/elan-init.ps1 -OutFile "$env:RUNNER_TEMP/elan-init.ps1"
+          & "$env:RUNNER_TEMP/elan-init.ps1" -NoPrompt 1
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value "$env:USERPROFILE\.elan\bin"
+
+      # Later steps see the installer's directory on PATH, as a new terminal would.
+      - name: README install line
+        if: matrix.install == 'readme' && runner.os != 'Windows'
+        shell: bash
+        run: |
+          source "$RUNNER_TEMP/quickstart/install.sh"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: README install line
+        if: matrix.install == 'readme' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          . "$env:RUNNER_TEMP/quickstart/install.ps1"
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value "$env:LOCALAPPDATA\Programs\axm"
+      - name: go install reports the latest tag
+        if: matrix.install == 'go-install'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          go install github.com/BuildCoherence/axiom-reason-ea/v2/cmd/axm@latest
+          gobin="$(go env GOPATH)/bin"
+          echo "$gobin" >> "$GITHUB_PATH"
+          got=$("$gobin/axm" --version)
+          if [ "$got" != "axm version ${tag#v}" ]; then
+            echo "::error::axm --version printed '$got'; the latest Release is $tag"
+            exit 1
+          fi
+          echo "$got"
+
+      - name: Quickstart, edit, check and viewer
+        if: runner.os != 'Windows'
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          source "$RUNNER_TEMP/quickstart/setup.sh"
+          files=(Workspace/*.lean)
+          edited=${files[0]}
+          test -f "$edited"
+          printf '\ntheorem quickstart_edit : True := trivial\n' >> "$edited"
+          axm check "$edited"
+
+          bash "$RUNNER_TEMP/quickstart/viewer.sh" > "$RUNNER_TEMP/viewer.log" 2>&1 &
+          viewer=$!
+          url=
+          for _ in $(seq 60); do
+            url=$(grep -m1 -oE 'http://127\.0\.0\.1:[0-9]+/' "$RUNNER_TEMP/viewer.log" || true)
+            if [ -n "$url" ]; then break; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/viewer.log"
+          if [ -z "$url" ]; then
+            echo "::error::axm viewer printed no 127.0.0.1 URL"
+            exit 1
+          fi
+          curl -fsS -o /dev/null "$url"
+          curl -fsS -o /dev/null "${url}local"
+          kill "$viewer"
+      - name: Quickstart, edit, check and viewer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          . "$env:RUNNER_TEMP/quickstart/setup.ps1"
+          $edited = 'Workspace/' + (Get-ChildItem Workspace -Filter *.lean | Sort-Object Name | Select-Object -First 1).Name
+          Add-Content -LiteralPath $edited -Value "`ntheorem quickstart_edit : True := trivial"
+          axm check $edited
+
+          $log = "$env:RUNNER_TEMP/viewer.log"
+          $viewer = Start-Process pwsh -PassThru -NoNewWindow -WorkingDirectory $PWD `
+            -ArgumentList '-NoProfile', '-File', "$env:RUNNER_TEMP/quickstart/viewer.ps1" `
+            -RedirectStandardOutput $log -RedirectStandardError "$env:RUNNER_TEMP/viewer.err"
+          $url = $null
+          foreach ($i in 1..60) {
+            $hit = Select-String -LiteralPath $log -Pattern 'http://127\.0\.0\.1:\d+/' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { $url = $hit.Matches[0].Value; break }
+            Start-Sleep -Seconds 1
+          }
+          Get-Content -LiteralPath $log, "$env:RUNNER_TEMP/viewer.err" -ErrorAction SilentlyContinue
+          if (-not $url) { throw 'axm viewer printed no 127.0.0.1 URL' }
+          curl.exe -fsS -o NUL $url
+          curl.exe -fsS -o NUL "${url}local"
+          Stop-Process -Id $viewer.Id
