@@ -204,7 +204,13 @@ func TestStatus_RecentlyFetched_NewestFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runStatus err = %v\nstdout=%s", err, stdout)
 	}
-	if i := strings.Index(stdout, "newer"); i < 0 || i > strings.Index(stdout, "older") {
+	// Search only the section: the header lines echo the workspace path,
+	// which can contain either id as a substring (macOS /var/folders).
+	_, section, ok := strings.Cut(stdout, "Recently fetched (2):")
+	if !ok {
+		t.Fatalf("missing Recently fetched (2): section; got:\n%s", stdout)
+	}
+	if i := strings.Index(section, "newer"); i < 0 || i > strings.Index(section, "older") {
 		t.Errorf("recently-fetched not newest-first; got:\n%s", stdout)
 	}
 }

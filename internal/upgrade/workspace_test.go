@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,41 @@ import (
 // internal/cliprompt/cliprompt_test.go. promptBuildConfig's own coverage
 // (the build-config-conflict prompt flow) lives in the workspace integration
 // tests below, which exercise the path end-to-end via WorkspaceOptions.
+
+// TestValidateMergeTreePath pins the git tree-path guard to slash semantics
+// on every OS: nested slash paths are accepted, and anything that is unclean,
+// escapes the root, or changes meaning on Windows is refused.
+func TestValidateMergeTreePath(t *testing.T) {
+	for _, p := range []string{
+		"lakefile.lean",
+		"Workspace/Notes.lean",
+		".axiom/skills/onboarding/SKILL.md",
+	} {
+		if err := validateMergeTreePath(p); err != nil {
+			t.Errorf("validateMergeTreePath(%q) = %v, want nil", p, err)
+		}
+	}
+	for _, p := range []string{
+		"",
+		".",
+		"..",
+		"../escape",
+		"Workspace/../../escape",
+		"./Workspace/Notes.lean",
+		"Workspace//Notes.lean",
+		"Workspace/",
+		"/etc/passwd",
+		`Workspace\Notes.lean`,
+		`..\escape`,
+		"C:/Windows/evil",
+		"C:evil",
+		"Notes.lean:stream",
+	} {
+		if err := validateMergeTreePath(p); err == nil {
+			t.Errorf("validateMergeTreePath(%q) = nil, want refusal", p)
+		}
+	}
+}
 
 // TestNewTagRe covers the bare-StdVer acceptance set and the
 // rejection set for the `lean_client.current_tag` shape guard. Both
@@ -875,6 +911,11 @@ func TestWriteFromGitObject_CreatesParentDirs(t *testing.T) {
 	info, err := os.Stat(dst)
 	if err != nil {
 		t.Fatalf("stat dst: %v", err)
+	}
+	// Windows has no Unix permission bits; Go reports only the read-only
+	// attribute there, so a writable file always stats as 0666.
+	if runtime.GOOS == "windows" {
+		return
 	}
 	if perm := info.Mode().Perm(); perm != 0o644 {
 		t.Errorf("dst mode = %o, want 0644", perm)

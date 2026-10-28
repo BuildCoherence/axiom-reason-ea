@@ -190,8 +190,17 @@ func preflightGitSource(errW io.Writer, source string) error {
 // gitClone shells `git clone <source> <dest>` and streams stdout/stderr.
 // The caller-supplied errW receives the subprocess's stderr so tests that
 // bind cobra's ErrOrStderr see the full output.
+//
+// The clone pins the Workspace's line-ending config so checkout yields the
+// template's blob bytes on every OS (as `axm upgrade` writes them), whatever
+// the user's global core.autocrlf / core.eol.
 func gitClone(errW io.Writer, source, ref, absDir string) error {
-	args := []string{"clone", "--branch", ref, "--single-branch", "--", source, absDir}
+	args := []string{
+		"clone",
+		"-c", "core.autocrlf=input",
+		"-c", "core.eol=lf",
+		"--branch", ref, "--single-branch", "--", source, absDir,
+	}
 	cmd := exec.Command("git", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = errW
