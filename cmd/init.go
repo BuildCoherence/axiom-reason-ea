@@ -224,17 +224,12 @@ func seedAxiomData(absDir string) error {
 	return nil
 }
 
-// runPrewarm checks for `lake` on PATH then shells `lake build axm_transform
-// Axiom` inside absDir. The `Axiom` target is required because the cloned
-// template's `Axioms.lean` does `import Axiom`; building only `axm_transform`
-// stops short of staging `Axiom.olean` in `.lake/packages/AxiomLib/.lake/build`,
-// which the transform's elaboration needs at `axm check` time.
-// Both the missing-toolchain branch and the build-failure branch print a soft
-// message and return nil — the clone is left in place and `axm check` will
-// retry the build on demand. errW is the cobra-owned stderr
-// writer; lake's stderr and the post-failure warning both route through it.
-// ctx is forwarded to CheckLakeInstalled so the pre-flight probe respects
-// cancellation / the 15s timeout bound.
+// runPrewarm probes lake from inside absDir (so elan honours the workspace's
+// lean-toolchain) and runs transform.Build there. Both the missing-toolchain
+// branch and the build-failure branch print a soft message and return nil —
+// the clone is left in place and `axm check` builds the same targets on
+// demand. errW is the cobra-owned stderr writer; lake's output and the
+// warnings both route through it.
 func runPrewarm(ctx context.Context, errW io.Writer, absDir string) error {
 	// The toolchain probe (`lake --version`, which on a cold elan silently
 	// fetches a default toolchain) is the ~10s output-less gap users hit
@@ -243,7 +238,7 @@ func runPrewarm(ctx context.Context, errW io.Writer, absDir string) error {
 	// unchanged.
 	lakeSpin := progress.New(errW)
 	lakeSpin.Start(msgCheckingToolchain)
-	lakeErr := transform.CheckLakeInstalled(ctx)
+	lakeErr := transform.CheckLakeInstalledIn(ctx, absDir)
 	if lakeErr != nil {
 		lakeSpin.Stop()
 		err := lakeErr
@@ -284,11 +279,7 @@ func runPrewarm(ctx context.Context, errW io.Writer, absDir string) error {
 	// shows a ticking elapsed timer.
 	buildSpin := progress.New(errW)
 	buildSpin.Start("Building Lean workspace")
-	buildCmd := exec.Command("lake", "build", "axm_transform", "Axiom")
-	buildCmd.Dir = absDir
-	buildCmd.Stdout = buildSpin.LakeWriter()
-	buildCmd.Stderr = buildSpin.LakeWriter()
-	if err := buildCmd.Run(); err != nil {
+	if err := transform.Build(ctx, absDir, false, buildSpin.LakeWriter()); err != nil {
 		buildSpin.Stop()
 		progress.Warnf(errW, "Pre-warm failed — your workspace at %s is still usable", absDir)
 		fmt.Fprintf(errW, "    %v\n", err)

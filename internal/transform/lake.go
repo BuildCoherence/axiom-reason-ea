@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
@@ -33,8 +34,8 @@ var ErrLakeMissing = errors.New("transform: `lake` not found on PATH; install el
 const elanNoDefaultToolchainMarker = "no default toolchain configured"
 
 // CheckLakeInstalled returns nil if `lake` is on PATH AND (best-effort)
-// runnable through elan. Otherwise it wraps ErrLakeMissing. Used by
-// `axm check`, `axm fork`, `axm pull`, and `axm init`'s pre-warm path.
+// runnable through elan, probing from the process cwd. Otherwise it wraps
+// ErrLakeMissing.
 //
 // We probe with `lake --version`: it's the cheapest invocation that still
 // forces elan to resolve a toolchain, and it emits the "no default
@@ -51,6 +52,13 @@ const elanNoDefaultToolchainMarker = "no default toolchain configured"
 // pre-flight indefinitely. Pass `cmd.Context()` from a Cobra RunE, or
 // `context.Background()` if you're calling from a location without one.
 func CheckLakeInstalled(ctx context.Context) error {
+	return CheckLakeInstalledIn(ctx, "")
+}
+
+// CheckLakeInstalledIn is CheckLakeInstalled with the probe run in dir ("" is
+// the process cwd). elan resolves the toolchain from the nearest
+// lean-toolchain file, so probing a workspace passes without an elan default.
+func CheckLakeInstalledIn(ctx context.Context, dir string) error {
 	if _, err := exec.LookPath("lake"); err != nil {
 		return fmt.Errorf("%w: %v", ErrLakeMissing, err)
 	}
@@ -58,6 +66,7 @@ func CheckLakeInstalled(ctx context.Context) error {
 	defer cancel()
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(probeCtx, "lake", "--version")
+	cmd.Dir = dir
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if strings.Contains(strings.ToLower(stderr.String()), elanNoDefaultToolchainMarker) {
@@ -67,6 +76,33 @@ func CheckLakeInstalled(ctx context.Context) error {
 		// timeout (DeadlineExceeded) counts as "probe unreliable" — the
 		// command proceeds; the real subprocess will run
 		// under its own separate timeout.
+	}
+	return nil
+}
+
+// BuildTargets are the Lake targets `lake exe axm_transform` needs at run
+// time: the exe itself, and the Axiom library whose oleans the elaborated
+// workspace files import. `lake exe` builds only the exe.
+var BuildTargets = []string{"axm_transform", "Axiom"}
+
+// Build runs `lake build` on BuildTargets in workspaceRoot, writing Lake's
+// stdout and stderr to out. quiet passes -q, which keeps an up-to-date build
+// silent while still printing build errors.
+func Build(ctx context.Context, workspaceRoot string, quiet bool, out io.Writer) error {
+	args := []string{"build"}
+	if quiet {
+		args = append(args, "-q")
+	}
+	args = append(args, BuildTargets...)
+	cmd := exec.CommandContext(ctx, "lake", args...)
+	cmd.Dir = workspaceRoot
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Run(); err != nil {
+		if isExecNotFound(err) {
+			return fmt.Errorf("%w: %v", ErrLakeMissing, err)
+		}
+		return fmt.Errorf("transform: lake build %s: %w", strings.Join(BuildTargets, " "), err)
 	}
 	return nil
 }

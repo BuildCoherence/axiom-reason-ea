@@ -418,3 +418,95 @@ func TestCheckLakeInstalled_ElanNoDefaultToolchain(t *testing.T) {
 		t.Errorf("err = %v, want it to mention `no default toolchain`", err)
 	}
 }
+
+// TestCheckLakeInstalledIn_ProbesFromDir: elan resolves the toolchain from the
+// lean-toolchain file in the probe's cwd, so a workspace probe passes with no
+// elan default while a probe from elsewhere reports ErrLakeMissing.
+func TestCheckLakeInstalledIn_ProbesFromDir(t *testing.T) {
+	bin := t.TempDir()
+	writeFakeLake(t, bin,
+		"[ -f lean-toolchain ] && exit 0\necho 'error: no default toolchain configured' >&2\nexit 1\n",
+		"@if exist lean-toolchain exit /b 0\r\n@echo error: no default toolchain configured 1>&2\r\n@exit /b 1\r\n")
+	t.Setenv("PATH", bin)
+	ws := t.TempDir()
+	if err := os.WriteFile(filepath.Join(ws, "lean-toolchain"), []byte("leanprover/lean4:v4.34.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckLakeInstalledIn(context.Background(), ws); err != nil {
+		t.Fatalf("probe from workspace: err = %v, want nil", err)
+	}
+	if err := CheckLakeInstalledIn(context.Background(), t.TempDir()); !errors.Is(err, ErrLakeMissing) {
+		t.Fatalf("probe outside workspace: err = %v, want ErrLakeMissing", err)
+	}
+}
+
+// fakeRecordingLake installs a fake `lake` that records its arguments and cwd
+// and exits with code, returning readers for both records.
+func fakeRecordingLake(t *testing.T, code string) (args, cwd func() string) {
+	t.Helper()
+	bin := t.TempDir()
+	rec := t.TempDir()
+	argsFile := filepath.Join(rec, "args")
+	cwdFile := filepath.Join(rec, "cwd")
+	writeFakeLake(t, bin,
+		"printf '%s' \"$*\" > '"+argsFile+"'\npwd > '"+cwdFile+"'\nexit "+code+"\n",
+		"@echo %*> \""+argsFile+"\"\r\n@cd > \""+cwdFile+"\"\r\n@exit /b "+code+"\r\n")
+	t.Setenv("PATH", bin)
+	read := func(p string) func() string {
+		return func() string {
+			b, err := os.ReadFile(p)
+			if err != nil {
+				t.Fatalf("fake lake did not run: %v", err)
+			}
+			return strings.TrimSpace(string(b))
+		}
+	}
+	return read(argsFile), read(cwdFile)
+}
+
+func sameDir(t *testing.T, a, b string) bool {
+	t.Helper()
+	ra, err1 := filepath.EvalSymlinks(a)
+	rb, err2 := filepath.EvalSymlinks(b)
+	if err1 != nil || err2 != nil {
+		t.Fatalf("resolve %q / %q: %v / %v", a, b, err1, err2)
+	}
+	return strings.EqualFold(filepath.Clean(ra), filepath.Clean(rb))
+}
+
+func TestBuild_BuildsExeAndAxiomInWorkspace(t *testing.T) {
+	for _, tc := range []struct {
+		quiet bool
+		want  string
+	}{
+		{false, "build axm_transform Axiom"},
+		{true, "build -q axm_transform Axiom"},
+	} {
+		args, cwd := fakeRecordingLake(t, "0")
+		ws := t.TempDir()
+		if err := Build(context.Background(), ws, tc.quiet, &bytes.Buffer{}); err != nil {
+			t.Fatalf("Build(quiet=%v) err = %v", tc.quiet, err)
+		}
+		if got := args(); got != tc.want {
+			t.Errorf("lake args = %q, want %q", got, tc.want)
+		}
+		if got := cwd(); !sameDir(t, got, ws) {
+			t.Errorf("lake cwd = %q, want %q", got, ws)
+		}
+	}
+}
+
+func TestBuild_FailureReturnsError(t *testing.T) {
+	fakeRecordingLake(t, "1")
+	err := Build(context.Background(), t.TempDir(), true, &bytes.Buffer{})
+	if err == nil || errors.Is(err, ErrLakeMissing) {
+		t.Fatalf("err = %v, want a build failure distinct from ErrLakeMissing", err)
+	}
+}
+
+func TestBuild_MissingLake(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if err := Build(context.Background(), t.TempDir(), true, &bytes.Buffer{}); !errors.Is(err, ErrLakeMissing) {
+		t.Fatalf("err = %v, want ErrLakeMissing", err)
+	}
+}
