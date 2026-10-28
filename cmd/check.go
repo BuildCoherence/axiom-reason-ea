@@ -160,6 +160,12 @@ func elaborateCheckFiles(cmd *cobra.Command, idx *axmindex.Index,
 
 	sp := progress.New(cmd.ErrOrStderr())
 	sp.Start(fmt.Sprintf("Checking %d file(s)", len(ordered)))
+	if err := transform.Build(cmd.Context(), idx.Root(), true, sp.LakeWriter()); err != nil {
+		sp.Stop()
+		fmt.Fprintf(cmd.ErrOrStderr(), "axm check: building the Lean workspace failed; run `lake build %s` in %s for the full log.\n",
+			strings.Join(transform.BuildTargets, " "), idx.Root())
+		return fmt.Errorf("axm check: %w", err)
+	}
 	resps, invokeErr := invokeCheckTransforms(cmd.Context(), idx.Root(), transform.Request{
 		ServerTime: time.Now().UTC().Unix(),
 		Username:   username,

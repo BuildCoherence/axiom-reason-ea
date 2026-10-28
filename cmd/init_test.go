@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -187,5 +189,38 @@ func TestRenameOriginToAxiomClient_NoOrigin(t *testing.T) {
 	var errBuf bytes.Buffer
 	if err := renameOriginToAxiomClient(&errBuf, dir); err != nil {
 		t.Errorf("rename should swallow no-origin error, got: %v\nstderr: %s", err, errBuf.String())
+	}
+}
+
+// TestRunPrewarm_ProbesInsideWorkspace: with no elan default toolchain, lake
+// works only where a lean-toolchain file pins one, so init must probe and
+// build inside the new workspace rather than in the directory it ran from.
+func TestRunPrewarm_ProbesInsideWorkspace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("lake shim uses /bin/sh; not portable to windows")
+	}
+	bin := t.TempDir()
+	script := "#!/bin/sh\n" +
+		"[ -f lean-toolchain ] || { echo 'error: no default toolchain configured' >&2; exit 1; }\n" +
+		"[ \"$1\" = build ] && : > built\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(bin, "lake"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Chdir(t.TempDir())
+	ws := t.TempDir()
+	if err := os.WriteFile(filepath.Join(ws, "lean-toolchain"), []byte("leanprover/lean4:v4.34.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var errW bytes.Buffer
+	if err := runPrewarm(context.Background(), &errW, ws); err != nil {
+		t.Fatalf("runPrewarm err = %v", err)
+	}
+	if strings.Contains(errW.String(), "skipped") {
+		t.Errorf("pre-warm was skipped; stderr=%q", errW.String())
+	}
+	if _, err := os.Stat(filepath.Join(ws, "built")); err != nil {
+		t.Errorf("lake build did not run in the workspace: %v", err)
 	}
 }

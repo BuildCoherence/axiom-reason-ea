@@ -246,6 +246,72 @@ func TestRunCheck_MissingElanPrintsRemediation(t *testing.T) {
 	}
 }
 
+// installBuildMarkingLake puts a fake `lake` on PATH whose `build`
+// subcommand touches marker and exits buildExit; other subcommands exit 0.
+func installBuildMarkingLake(t *testing.T, marker, buildExit string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("lake shim uses /bin/sh; not portable to windows")
+	}
+	dir := t.TempDir()
+	script := "#!/bin/sh\n[ \"$1\" = build ] || exit 0\ntouch '" + marker + "'\nexit " + buildExit + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "lake"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// TestRunCheck_BuildsAxiomBeforeElaborating covers a workspace whose init
+// warm-up never ran: the fake transform fails as the real one does when
+// Axiom.olean is absent, so check passes only if it builds first.
+func TestRunCheck_BuildsAxiomBeforeElaborating(t *testing.T) {
+	root := initWorkspace(t)
+	setTestHome(t)
+	marker := filepath.Join(t.TempDir(), "built")
+	installBuildMarkingLake(t, marker, "0")
+	if err := os.WriteFile(filepath.Join(root, "Workspace/A.lean"), []byte("import Axiom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "needs-build-axm-transform")
+	script := "#!/bin/sh\ncat > /dev/null\n" +
+		"[ -f '" + marker + "' ] || { echo \"unknown module prefix 'Axiom'\" >&2; exit 1; }\n" +
+		"printf '%s\\n' '{\"path\":\"Workspace/A.lean\",\"file_id\":\"X\"}'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AXM_TRANSFORM_BIN", bin)
+
+	stdout, stderr, err := runCheckCmd(t, root, "Workspace/A.lean")
+	if err != nil {
+		t.Fatalf("runCheck err = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "axm check: OK (1 file(s) elaborated cleanly)") {
+		t.Errorf("stdout = %q, want OK summary", stdout)
+	}
+}
+
+func TestRunCheck_BuildFailureStopsBeforeElaborating(t *testing.T) {
+	root := initWorkspace(t)
+	setTestHome(t)
+	installBuildMarkingLake(t, filepath.Join(t.TempDir(), "built"), "1")
+	if err := os.WriteFile(filepath.Join(root, "Workspace/A.lean"), []byte("import Axiom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	capture := filepath.Join(t.TempDir(), "requests.ndjson")
+	t.Setenv("AXM_TRANSFORM_BIN", installAppendingTransform(t, capture))
+
+	_, stderr, err := runCheckCmd(t, root, "Workspace/A.lean")
+	if err == nil {
+		t.Fatal("runCheck succeeded with a failing lake build; want an error")
+	}
+	if !strings.Contains(stderr, "lake build axm_transform Axiom") {
+		t.Errorf("stderr = %q, want the lake build remedy", stderr)
+	}
+	if _, statErr := os.Stat(capture); !os.IsNotExist(statErr) {
+		t.Errorf("transform ran after a failed build (capture stat err = %v)", statErr)
+	}
+}
+
 func TestRunCheck_LocalFailureExitsNonZero(t *testing.T) {
 	stubLakeOnPATH(t)
 	root := initWorkspace(t)
