@@ -14,6 +14,7 @@ import (
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/corpus"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/progress"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/transform"
+	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/upgrade"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/userconfig"
 	"github.com/spf13/cobra"
 )
@@ -138,7 +139,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		head.SnapshotFileID, head.PublishedAt.UTC().Format(time.RFC3339), strings.ToLower(username))
 	next := []byte(header + responses[0].Content)
 
-	modified := localExists && !localMatchesSync(published, current)
+	modified := localExists && !localMatchesSync(published, current) && !matchesTemplate(ctx, idx.Root(), current)
 	if modified && !pullForce {
 		fmt.Fprint(cmd.ErrOrStderr(), renderAxiomsDiff(current, next))
 		return errors.New("Axioms.lean has local changes; re-run with --force to save it as Axioms.lean.orig and replace it")
@@ -204,6 +205,13 @@ func localAxiomsInSync(idx *axmindex.Index, remoteFileID string) (bool, error) {
 		return false, err
 	}
 	return entry.ContentHash == axmindex.NormalizedHash(content), nil
+}
+
+// matchesTemplate reports whether current is the Axioms.lean the Workspace's
+// lean-client template shipped, which holds no user edits to protect.
+func matchesTemplate(ctx context.Context, root string, current []byte) bool {
+	shipped, ok := upgrade.TemplateFile(ctx, root, axiomsLeanPath)
+	return ok && axmindex.NormalizedHash(shipped) == axmindex.NormalizedHash(current)
 }
 
 func localMatchesSync(published map[string]axmindex.Published, current []byte) bool {
