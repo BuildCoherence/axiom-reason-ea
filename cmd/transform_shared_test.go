@@ -1,6 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/axmindex"
@@ -120,5 +125,122 @@ func Test_workspaceImportMap_EmptyFileIDIsSkipped(t *testing.T) {
 	}
 	if got["Workspace.OK"] != "PRIOR_ok" {
 		t.Errorf("non-empty entry must pass through; got %q", got["Workspace.OK"])
+	}
+}
+
+// installWorkspaceLake puts a fake `lake` on PATH that behaves like elan with
+// no default toolchain: `lake --version` succeeds only in a directory holding
+// lean-toolchain. `lake build` touches marker and exits buildExit.
+func installWorkspaceLake(t *testing.T, marker, buildExit string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("lake shim uses /bin/sh; not portable to windows")
+	}
+	dir := t.TempDir()
+	script := "#!/bin/sh\n" +
+		"if [ \"$1\" = build ]; then touch '" + marker + "'; exit " + buildExit + "; fi\n" +
+		"[ -f lean-toolchain ] || { echo 'error: no default toolchain configured' >&2; exit 1; }\n"
+	if err := os.WriteFile(filepath.Join(dir, "lake"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// installNeedsBuildTransform stands in for `lake exe axm_transform` in a
+// Workspace whose Axiom library is unbuilt: it fails as the real exe does
+// until marker exists, then answers one success response for path.
+func installNeedsBuildTransform(t *testing.T, marker, path, fileID, content string) {
+	t.Helper()
+	resp, err := json.Marshal(map[string]any{"path": path, "file_id": fileID, "content": content, "depends_on": []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	respPath := filepath.Join(t.TempDir(), "response.json")
+	if err := os.WriteFile(respPath, append(resp, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "needs-build-axm-transform")
+	script := "#!/bin/sh\ncat > /dev/null\n" +
+		"[ -f '" + marker + "' ] || { echo \"unknown module prefix 'Axiom'\" >&2; exit 1; }\n" +
+		"cat '" + respPath + "'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AXM_TRANSFORM_BIN", bin)
+}
+
+// reverseTransformCommands are the commands that reverse-transform a corpus
+// file into the Workspace, with the file each one writes.
+var reverseTransformCommands = []struct {
+	name   string
+	run    func(t *testing.T, dir string) (string, string, error)
+	output string
+}{
+	{"fork", func(t *testing.T, dir string) (string, string, error) {
+		return runForkCmd(t, dir, fxRoot, "Dest")
+	}, "Workspace/Dest.lean"},
+	{"pull", func(t *testing.T, dir string) (string, string, error) {
+		return runPullCmd(t, dir, "alice")
+	}, axiomsLeanPath},
+}
+
+// TestReverseTransform_BuildsAxiomInWorkspaceRoot covers a Workspace whose
+// init warm-up never ran, entered from a subdirectory with no elan default:
+// the lake probe must run from the Workspace root and the Axiom library must
+// be built before the reverse transform.
+func TestReverseTransform_BuildsAxiomInWorkspaceRoot(t *testing.T) {
+	for _, tc := range reverseTransformCommands {
+		t.Run(tc.name, func(t *testing.T) {
+			installFixtureCorpus(t)
+			pinClock(t)
+			t.Setenv("AXM_NO_SPINNER", "1")
+			root := initFetchWorkspace(t)
+			if err := os.WriteFile(filepath.Join(root, "lean-toolchain"), []byte("leanprover/lean4:v4.34.0\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			sub := filepath.Join(root, workspaceDir)
+			if err := os.MkdirAll(sub, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(t.TempDir(), "built")
+			installWorkspaceLake(t, marker, "0")
+			installNeedsBuildTransform(t, marker, tc.output, fxRoot, "def Q : Nat := 0\n")
+
+			if _, stderr, err := tc.run(t, sub); err != nil {
+				t.Fatalf("%s: %v\nstderr: %s", tc.name, err, stderr)
+			}
+			got, err := os.ReadFile(filepath.Join(root, tc.output))
+			if err != nil || !strings.HasSuffix(string(got), "def Q : Nat := 0\n") {
+				t.Errorf("%s = %q (%v), want the reverse-transformed content", tc.output, got, err)
+			}
+		})
+	}
+}
+
+func TestReverseTransform_BuildFailureStopsBeforeTransform(t *testing.T) {
+	for _, tc := range reverseTransformCommands {
+		t.Run(tc.name, func(t *testing.T) {
+			installFixtureCorpus(t)
+			root := initFetchWorkspace(t)
+			if err := os.WriteFile(filepath.Join(root, "lean-toolchain"), []byte("leanprover/lean4:v4.34.0\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			capture := installCapturingTransform(t, tc.output, fxRoot, "x\n")
+			installWorkspaceLake(t, filepath.Join(t.TempDir(), "built"), "1")
+
+			_, stderr, err := tc.run(t, root)
+			if err == nil {
+				t.Fatalf("%s succeeded with a failing lake build; want an error", tc.name)
+			}
+			if !strings.Contains(stderr, "lake build axm_transform Axiom") {
+				t.Errorf("stderr = %q, want the lake build remedy", stderr)
+			}
+			if _, statErr := os.Stat(capture); !os.IsNotExist(statErr) {
+				t.Errorf("transform ran after a failed build (capture stat err = %v)", statErr)
+			}
+			if _, statErr := os.Stat(filepath.Join(root, tc.output)); !os.IsNotExist(statErr) {
+				t.Errorf("%s wrote %s after a failed build", tc.name, tc.output)
+			}
+		})
 	}
 }

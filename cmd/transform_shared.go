@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/axmindex"
+	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/progress"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/transform"
+	"github.com/spf13/cobra"
 )
 
 // axiomsLeanPath is the canonical location of the user's personal-axioms file
@@ -20,9 +22,29 @@ const axiomsLeanPath = "Axioms.lean"
 const workspaceDir = "Workspace"
 
 // msgCheckingToolchain is the single canonical spinner label for the
-// `lake --version` / CheckLakeInstalled probe, shared by check, fork, pull
+// `lake --version` / CheckLakeInstalledIn probe, shared by check, fork, pull
 // and init so the wording (also quoted in the user-flow docs) lives in one place.
 const msgCheckingToolchain = "Checking Lean toolchain"
+
+// probeLake runs the lake pre-flight from the Workspace root, so elan resolves
+// the Workspace's lean-toolchain, under the toolchain spinner.
+func probeLake(cmd *cobra.Command, root string) error {
+	return progress.Spin(cmd.ErrOrStderr(), msgCheckingToolchain, func() error {
+		return transform.CheckLakeInstalledIn(cmd.Context(), root)
+	})
+}
+
+// buildForTransform quietly builds the Lake targets `lake exe axm_transform`
+// needs in root, writing Lake's output to out. On failure it tells the user
+// where to rerun the build for the full log.
+func buildForTransform(cmd *cobra.Command, root string, out io.Writer) error {
+	if err := transform.Build(cmd.Context(), root, true, out); err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "axm %s: building the Lean workspace failed; run `lake build %s` in %s for the full log.\n",
+			cmd.Name(), strings.Join(transform.BuildTargets, " "), root)
+		return fmt.Errorf("axm %s: %w", cmd.Name(), err)
+	}
+	return nil
+}
 
 // workspaceImportMap builds the dotted-module-name → base50 file_id map the
 // transform exe consumes. It merges two sources by precedence:

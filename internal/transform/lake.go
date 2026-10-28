@@ -12,7 +12,7 @@ import (
 )
 
 // lakeVersionProbeTimeout bounds how long `lake --version` may run during
-// the CheckLakeInstalled pre-flight. The probe normally returns in under
+// the CheckLakeInstalledIn pre-flight. The probe normally returns in under
 // a second, but an elan-shimmed `lake` can hang indefinitely if the
 // configured toolchain tries to download a missing component over a
 // wedged network — we don't want the CLI to stall the user forever on
@@ -20,7 +20,7 @@ import (
 // network, short enough that a genuinely-stuck probe surfaces promptly.
 const lakeVersionProbeTimeout = 15 * time.Second
 
-// ErrLakeMissing is returned by CheckLakeInstalled and Invoke when the
+// ErrLakeMissing is returned by CheckLakeInstalledIn, Build and Invoke when the
 // `lake` binary cannot be found on PATH, or when it is on PATH but
 // unusable because elan has no default toolchain configured. Both
 // conditions share the same fix (install/configure elan), so callers
@@ -33,9 +33,10 @@ var ErrLakeMissing = errors.New("transform: `lake` not found on PATH; install el
 // configured" — we match on the lower-case substring for robustness.
 const elanNoDefaultToolchainMarker = "no default toolchain configured"
 
-// CheckLakeInstalled returns nil if `lake` is on PATH AND (best-effort)
-// runnable through elan, probing from the process cwd. Otherwise it wraps
-// ErrLakeMissing.
+// CheckLakeInstalledIn returns nil if `lake` is on PATH AND (best-effort)
+// runnable through elan, probing from dir ("" is the process cwd). Otherwise
+// it wraps ErrLakeMissing. elan resolves the toolchain from the nearest
+// lean-toolchain file, so probing a workspace passes without an elan default.
 //
 // We probe with `lake --version`: it's the cheapest invocation that still
 // forces elan to resolve a toolchain, and it emits the "no default
@@ -51,13 +52,6 @@ const elanNoDefaultToolchainMarker = "no default toolchain configured"
 // wedged elan shim (e.g. hung toolchain download) can't stall the CLI's
 // pre-flight indefinitely. Pass `cmd.Context()` from a Cobra RunE, or
 // `context.Background()` if you're calling from a location without one.
-func CheckLakeInstalled(ctx context.Context) error {
-	return CheckLakeInstalledIn(ctx, "")
-}
-
-// CheckLakeInstalledIn is CheckLakeInstalled with the probe run in dir ("" is
-// the process cwd). elan resolves the toolchain from the nearest
-// lean-toolchain file, so probing a workspace passes without an elan default.
 func CheckLakeInstalledIn(ctx context.Context, dir string) error {
 	if _, err := exec.LookPath("lake"); err != nil {
 		return fmt.Errorf("%w: %v", ErrLakeMissing, err)
