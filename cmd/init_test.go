@@ -76,6 +76,29 @@ func TestRunClone_ClonesRequestedTagAndSeedsWorkspace(t *testing.T) {
 	}
 }
 
+// TestRunClone_IgnoresGlobalCRLFConversion reproduces a Windows runner's
+// global core.autocrlf=true on any OS: the Workspace must still check out the
+// template's LF bytes, and keep that setting for later checkouts.
+func TestRunClone_IgnoresGlobalCRLFConversion(t *testing.T) {
+	repo := makeTaggedInitRepo(t)
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(global, []byte("[core]\n\tautocrlf = true\n\teol = crlf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	dest := filepath.Join(t.TempDir(), "workspace")
+	if err := runClone(io.Discard, repo, "v"+leanClientTag, dest); err != nil {
+		t.Fatalf("runClone: %v", err)
+	}
+	assertInitContent(t, dest, "active\n")
+	for key, want := range map[string]string{"core.autocrlf": "input", "core.eol": "lf"} {
+		out, err := exec.Command("git", "-C", dest, "config", "--local", key).Output()
+		if err != nil || strings.TrimSpace(string(out)) != want {
+			t.Errorf("workspace %s = %q (%v), want %q", key, out, err, want)
+		}
+	}
+}
+
 func TestRunClone_MissingTagFails(t *testing.T) {
 	repo := makeTaggedInitRepo(t)
 	dest := filepath.Join(t.TempDir(), "workspace")

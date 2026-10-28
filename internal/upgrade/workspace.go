@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -295,14 +296,11 @@ func RunWorkspaceUpgrade(ctx context.Context, opts WorkspaceOptions) (*Workspace
 	touchedPaths := make([]string, 0, len(mergeResult.Changes))
 	buildConfigDiff := false
 	for _, c := range mergeResult.Changes {
-		// Guard against a merge-tree path escaping the repo root via
-		// `..` or absolute prefix. Git constrains its own tree paths,
-		// but defense-in-depth here is cheap.
-		cleaned := filepath.Clean(c.Path)
-		if cleaned != c.Path || strings.HasPrefix(cleaned, "..") || strings.HasPrefix(cleaned, "/") || filepath.IsAbs(cleaned) {
-			return nil, fmt.Errorf("axm upgrade: refusing suspicious merge-tree path %q", c.Path)
+		if err := validateMergeTreePath(c.Path); err != nil {
+			return nil, err
 		}
-		target := filepath.Join(opts.RepoDir, cleaned)
+		treePath := c.Path
+		target := filepath.Join(opts.RepoDir, treePath)
 		// Defence-in-depth: the resolved target must remain under
 		// opts.RepoDir. filepath.Join already collapses `..`; recheck
 		// explicitly to refuse a target whose canonical form escaped.
@@ -327,7 +325,7 @@ func RunWorkspaceUpgrade(ctx context.Context, opts WorkspaceOptions) (*Workspace
 		case OutcomeClean:
 			src = c.MergedBlobSHA
 			dst = target
-			stage = cleaned
+			stage = treePath
 		case OutcomeCleanDelete:
 			// The incoming version removed this path and the user hadn't
 			// edited it, so the merge deletes it cleanly. Remove it from
@@ -336,8 +334,8 @@ func RunWorkspaceUpgrade(ctx context.Context, opts WorkspaceOptions) (*Workspace
 			// gone from disk).
 			remove = true
 			dst = target
-			stage = cleaned
-			cleanDeleted = append(cleanDeleted, cleaned)
+			stage = treePath
+			cleanDeleted = append(cleanDeleted, treePath)
 		case OutcomeModifyDeleteConflict:
 			// The incoming version deleted this path, but the Workspace
 			// modified it — a modify/delete conflict. There is no new
@@ -345,18 +343,18 @@ func RunWorkspaceUpgrade(ctx context.Context, opts WorkspaceOptions) (*Workspace
 			// worth preserving, so keep the file exactly as-is on disk,
 			// stage nothing, and warn in the summary. `continue` skips the
 			// write/remove/stage tail below entirely.
-			modifyDeleted = append(modifyDeleted, cleaned)
+			modifyDeleted = append(modifyDeleted, treePath)
 			continue
 		case OutcomeBuildConfigConflict:
 			// accepted by the time we get here; otherwise we
 			// returned ErrUserAborted above.
-			src = "axiom-client/" + newMirrorTag + ":" + cleaned
+			src = "axiom-client/" + newMirrorTag + ":" + treePath
 			dst = target
-			stage = cleaned
+			stage = treePath
 		case OutcomeNonBuildConfigConflict:
-			src = "axiom-client/" + newMirrorTag + ":" + cleaned
+			src = "axiom-client/" + newMirrorTag + ":" + treePath
 			dst = target + ".axmnew"
-			stage = cleaned + ".axmnew"
+			stage = treePath + ".axmnew"
 			// Refuse to silently overwrite a pre-existing .axmnew
 			// companion the user may be mid-merging into the real
 			// file. Surfacing this gives the user a clean remediation;
@@ -368,19 +366,19 @@ func RunWorkspaceUpgrade(ctx context.Context, opts WorkspaceOptions) (*Workspace
 					dst,
 				)
 			}
-			axmNewWritten = append(axmNewWritten, cleaned+".axmnew")
+			axmNewWritten = append(axmNewWritten, treePath+".axmnew")
 		}
 
-		if cleaned == "lakefile.lean" || cleaned == "lean-toolchain" {
+		if treePath == "lakefile.lean" || treePath == "lean-toolchain" {
 			buildConfigDiff = true
 		}
 
 		if remove {
 			if err := removeFromWorkingTree(opts.RepoDir, dst); err != nil {
-				return nil, fmt.Errorf("applying deletion of %s: %w", cleaned, err)
+				return nil, fmt.Errorf("applying deletion of %s: %w", treePath, err)
 			}
 		} else if err := writeFromGitObject(ctx, opts.RepoDir, src, dst); err != nil {
-			return nil, fmt.Errorf("applying %s: %w", cleaned, err)
+			return nil, fmt.Errorf("applying %s: %w", treePath, err)
 		}
 		touchedPaths = append(touchedPaths, stage)
 	}
@@ -610,6 +608,18 @@ func promptBuildConfig(opts WorkspaceOptions, conflicts []FileChange) (bool, err
 	return cliprompt.ParseYes(answer), nil
 }
 
+// validateMergeTreePath refuses a git tree path (slash-separated on every
+// OS) that is not already clean, would leave the Workspace root, or would
+// not map to the same local file on every OS: backslashes and colons are
+// separators or drive/stream markers on Windows.
+func validateMergeTreePath(p string) error {
+	if p == "" || p == "." || path.Clean(p) != p || path.IsAbs(p) || p == ".." || strings.HasPrefix(p, "../") ||
+		strings.ContainsAny(p, `\:`) || !filepath.IsLocal(filepath.FromSlash(p)) {
+		return fmt.Errorf("axm upgrade: refusing suspicious merge-tree path %q", p)
+	}
+	return nil
+}
+
 // writeFromGitObject runs `git -C <repoDir> cat-file -p <src>` and
 // writes the resulting bytes to dst, creating dst's parent
 // directories (0755) if needed. dst gets 0644 — regular file mode;
@@ -649,8 +659,8 @@ func writeFromGitObject(ctx context.Context, repoDir, src, dst string) error {
 // empty directory behind; it is the symmetric opposite of
 // writeFromGitObject's os.MkdirAll on the write side.
 //
-// The apply loop's own path guard is purely lexical (filepath.Clean /
-// Abs don't resolve symlinks), so before touching disk this re-checks
+// The apply loop's own path guard is purely lexical (path.Clean /
+// filepath.Abs don't resolve symlinks), so before touching disk this re-checks
 // containment against the SYMLINK-RESOLVED paths: a working tree where a
 // symlinked directory stands in for a real one must not let a delete
 // escape the Workspace. A clean deletion only ever targets a git-tracked

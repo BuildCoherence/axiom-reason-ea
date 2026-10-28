@@ -380,15 +380,18 @@ func TestCheckLakeInstalledPresent(t *testing.T) {
 // check, axm fork, axm pull) can print the elan install hint.
 func TestCheckLakeInstalled_ElanNoDefaultToolchain(t *testing.T) {
 	dir := t.TempDir()
-	lake := filepath.Join(dir, "lake")
-	if runtime.GOOS == "windows" {
-		lake += ".exe"
-	}
 	// Mimic elan's stderr output verbatim (casing preserved; our matcher
-	// lower-cases both sides).
+	// lower-cases both sides). Windows resolves `lake` to a batch file via
+	// PATHEXT, so the fake shim is a .cmd script there.
+	lake := filepath.Join(dir, "lake")
 	script := "#!/bin/sh\n" +
 		"echo 'error: no default toolchain configured' >&2\n" +
 		"exit 1\n"
+	if runtime.GOOS == "windows" {
+		lake += ".cmd"
+		script = "@echo error: no default toolchain configured 1>&2\r\n" +
+			"@exit /b 1\r\n"
+	}
 	if err := os.WriteFile(lake, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
