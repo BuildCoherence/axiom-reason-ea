@@ -635,13 +635,9 @@ func writeFromGitObject(ctx context.Context, repoDir, src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
 	}
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "cat-file", "-p", src)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, err := readGitObject(ctx, repoDir, src)
 	if err != nil {
-		return fmt.Errorf("git cat-file -p %s: %w (stderr: %s)",
-			src, err, strings.TrimSpace(stderr.String()))
+		return err
 	}
 	// 0o644: regular file. We do not preserve executable bits — see
 	// function doc.
@@ -649,6 +645,37 @@ func writeFromGitObject(ctx context.Context, repoDir, src, dst string) error {
 		return fmt.Errorf("write %s: %w", dst, err)
 	}
 	return nil
+}
+
+func readGitObject(ctx context.Context, repoDir, src string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "cat-file", "-p", src)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git cat-file -p %s: %w (stderr: %s)",
+			src, err, strings.TrimSpace(stderr.String()))
+	}
+	return out, nil
+}
+
+// TemplateFile returns the lean-client template's content of treePath at
+// the version repoDir's lakefile.lean pins, read from the template ref the
+// Workspace's git holds for that version: the axiom-client tracking ref
+// `axm upgrade` fetches, else the tag `axm init` cloned. ok is false when
+// the version is unreadable or neither ref carries treePath.
+func TemplateFile(ctx context.Context, repoDir, treePath string) (content []byte, ok bool) {
+	version, err := lakefile.ReadVersion(filepath.Join(repoDir, "lakefile.lean"))
+	if err != nil {
+		return nil, false
+	}
+	mirrorTag := "v" + version
+	for _, ref := range []string{"refs/remotes/axiom-client/" + mirrorTag, "refs/tags/" + mirrorTag} {
+		if out, err := readGitObject(ctx, repoDir, ref+":"+treePath); err == nil {
+			return out, true
+		}
+	}
+	return nil, false
 }
 
 // removeFromWorkingTree deletes dst from the working tree for a clean

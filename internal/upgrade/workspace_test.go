@@ -1028,3 +1028,39 @@ func TestRunWorkspaceUpgrade_PreStagedChangesStayOutOfCommit(t *testing.T) {
 		t.Fatalf("pre-staged file no longer staged after upgrade; staged=%q", staged)
 	}
 }
+
+// TestTemplateFile_FollowsPinnedVersion reads the template at the version
+// lakefile.lean pins: from the tag `axm init` cloned, then from the tracking
+// ref `axm upgrade` fetched, never from the Workspace's own commits.
+func TestTemplateFile_FollowsPinnedVersion(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available on PATH; skipping integration test")
+	}
+	ctx := context.Background()
+	ws := buildUpgradeFixture(t, "0.3.1", "0.3.2")
+	assertTemplateFile := func(when, want string) {
+		t.Helper()
+		got, ok := TemplateFile(ctx, ws, "Workspace/Notes.lean")
+		if !ok || string(got) != want {
+			t.Errorf("%s: TemplateFile = %q, %v; want %q", when, got, ok, want)
+		}
+	}
+
+	writeFixtureFile(t, ws, "Workspace/Notes.lean", "def mine := 7\n")
+	gitRun(t, ws, "commit", "-qam", "user edit")
+	assertTemplateFile("after init", "def a := 1\n")
+
+	writeFixtureFile(t, ws, "Workspace/Notes.lean", "def a := 1\n")
+	gitRun(t, ws, "commit", "-qam", "revert user edit")
+	if _, err := RunWorkspaceUpgrade(ctx, WorkspaceOptions{
+		RepoDir: ws, NewTag: "0.3.2", Yes: true, NonTTY: true, Stdout: io.Discard, Stderr: io.Discard,
+	}); err != nil {
+		t.Fatalf("RunWorkspaceUpgrade: %v", err)
+	}
+	gitRun(t, ws, "tag", "-d", "v0.3.2")
+	assertTemplateFile("after upgrade", "def a := 2\n")
+
+	if got, ok := TemplateFile(ctx, ws, "Missing.lean"); ok {
+		t.Errorf("TemplateFile(Missing.lean) = %q, true; want not found", got)
+	}
+}

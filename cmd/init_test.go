@@ -14,38 +14,40 @@ import (
 // differs from its later main commit.
 func makeTaggedInitRepo(t *testing.T) string {
 	t.Helper()
+	repo := makeTemplateRepo(t, map[string]string{
+		"version.txt":                 "active\n",
+		".axiom/skills/demo/SKILL.md": "---\ndescription: demo\n---\ndemo skill\n",
+	})
+	if err := os.WriteFile(filepath.Join(repo, "version.txt"), []byte("newer-main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "commit", "-qam", "candidate")
+	return repo
+}
+
+// makeTemplateRepo returns a git repo holding files in one commit tagged
+// v<leanClientTag>, the ref `axm init` clones.
+func makeTemplateRepo(t *testing.T, files map[string]string) string {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not available in this test environment")
 	}
 	repo := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v: %s", args, err, out)
+	runGit(t, repo, "init", "-q")
+	runGit(t, repo, "config", "user.name", "test")
+	runGit(t, repo, "config", "user.email", "test@example.com")
+	for name, content := range files {
+		path := filepath.Join(repo, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
-	run("init", "-q")
-	run("config", "user.name", "test")
-	run("config", "user.email", "test@example.com")
-	path := filepath.Join(repo, "version.txt")
-	if err := os.WriteFile(path, []byte("active\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	skill := filepath.Join(repo, ".axiom", "skills", "demo", "SKILL.md")
-	if err := os.MkdirAll(filepath.Dir(skill), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(skill, []byte("---\ndescription: demo\n---\ndemo skill\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-qm", "active")
-	run("tag", "v"+leanClientTag)
-	if err := os.WriteFile(path, []byte("newer-main\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("commit", "-qam", "candidate")
+	runGit(t, repo, "add", "-A")
+	runGit(t, repo, "commit", "-qm", "active")
+	runGit(t, repo, "tag", "v"+leanClientTag)
 	return repo
 }
 

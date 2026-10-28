@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -206,5 +207,60 @@ func TestRunPull_UnknownOrMissingUsername(t *testing.T) {
 				t.Errorf("pull wrote Axioms.lean: %v", statErr)
 			}
 		})
+	}
+}
+
+// initTemplateWorkspace clones a template carrying the starter Axioms.lean
+// the way `axm init` does and returns the Workspace root.
+func initTemplateWorkspace(t *testing.T) string {
+	t.Helper()
+	repo := makeTemplateRepo(t, map[string]string{
+		"lakefile.lean": "import Lake\nopen Lake DSL\npackage axiomClient where\n" +
+			"  version := v!\"" + leanClientTag + "\"\n" +
+			"require AxiomLib from git \"https://github.com/BuildCoherence/axiom-lib\" @ \"" +
+			minimumMaterializationAxiomLibTag + "\"\n",
+		axiomsLeanPath: templateAxioms,
+	})
+	root := filepath.Join(t.TempDir(), "ws")
+	if err := runClone(io.Discard, repo, "v"+leanClientTag, root); err != nil {
+		t.Fatalf("runClone: %v", err)
+	}
+	return root
+}
+
+const templateAxioms = "import Axiom\n\nuser_axioms {\n}\n"
+
+func TestRunPull_FreshTemplateWorkspaceNeedsNoForce(t *testing.T) {
+	installFixtureCorpus(t)
+	pinClock(t)
+	root := initTemplateWorkspace(t)
+	capturePath := installCapturingTransform(t, axiomsLeanPath, fxRoot, "user_axioms {\n}\n")
+
+	if _, stderr, err := runPullCmd(t, root, "alice"); err != nil {
+		t.Fatalf("runPull on a fresh Workspace: %v\nstderr: %s", err, stderr)
+	}
+	assertPulledAlice(t, root, capturePath)
+	if _, err := os.Stat(filepath.Join(root, axiomsLeanPath+".orig")); !os.IsNotExist(err) {
+		t.Errorf("pull saved the untouched template as Axioms.lean.orig: %v", err)
+	}
+}
+
+func TestRunPull_EditedTemplateAxiomsRefuses(t *testing.T) {
+	installFixtureCorpus(t)
+	pinClock(t)
+	root := initTemplateWorkspace(t)
+	installCapturingTransform(t, axiomsLeanPath, fxRoot, "user_axioms {\n}\n")
+	edited := templateAxioms + "-- my note\ndef mine : Nat := 1\n"
+	target := filepath.Join(root, axiomsLeanPath)
+	if err := os.WriteFile(target, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := runPullCmd(t, root, "alice")
+	if err == nil || !strings.Contains(err.Error(), "Axioms.lean has local changes") {
+		t.Fatalf("runPull error = %v, want a local-changes refusal", err)
+	}
+	if got, readErr := os.ReadFile(target); readErr != nil || string(got) != edited {
+		t.Errorf("Axioms.lean = %q (%v), want the edit kept", got, readErr)
 	}
 }
