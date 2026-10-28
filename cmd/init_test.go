@@ -34,6 +34,8 @@ func makeTemplateRepo(t *testing.T, files map[string]string) string {
 	}
 	repo := t.TempDir()
 	runGit(t, repo, "init", "-q")
+	runGit(t, repo, "config", "user.name", "test")
+	runGit(t, repo, "config", "user.email", "test@example.com")
 	for name, content := range files {
 		path := filepath.Join(repo, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
