@@ -76,18 +76,9 @@ func RunBinaryUpgrade(ctx context.Context, opts Options) (*Result, error) {
 		stderr = io.Discard
 	}
 	urls := BuildArchiveURLs(opts.ReleaseRepo, opts.TargetVersion, opts.GOOS, opts.GOARCH)
-	fmt.Fprintln(stderr, "axm upgrade: downloading archive...")
-	archive, sums, err := downloadAll(ctx, client, urls)
+	innerBinary, err := FetchBinary(ctx, client, urls, opts.BinaryName, opts.GOOS, opts.GOARCH, stderr)
 	if err != nil {
 		return nil, err
-	}
-	fmt.Fprintln(stderr, "axm upgrade: verifying checksum...")
-	if err := verifyChecksum(archive, sums, opts.GOOS, opts.GOARCH); err != nil {
-		return nil, fmt.Errorf("%w (artifacts: %s, %s)", err, urls.Archive, urls.Checksums)
-	}
-	innerBinary, err := extractBinary(archive, opts.BinaryName, opts.GOOS)
-	if err != nil {
-		return nil, fmt.Errorf("%w (archive: %s)", err, urls.Archive)
 	}
 
 	// Capture before selfupdate renames and removes the running image.
@@ -128,13 +119,39 @@ type ArchiveURLs struct {
 	Checksums string
 }
 
+// ArchiveName is the published archive file name for one platform.
+func ArchiveName(goos, goarch string) string {
+	return fmt.Sprintf("%s_%s_%s%s", archiveProjectName, goos, goarch, ArchiveExt(goos))
+}
+
 // BuildArchiveURLs constructs the two GitHub Release asset URLs.
 func BuildArchiveURLs(repo, version, goos, goarch string) ArchiveURLs {
-	archive := fmt.Sprintf("%s_%s_%s%s", archiveProjectName, goos, goarch, ArchiveExt(goos))
 	return ArchiveURLs{
-		Archive:   ReleaseAssetURL(repo, version, archive),
+		Archive:   ReleaseAssetURL(repo, version, ArchiveName(goos, goarch)),
 		Checksums: ReleaseAssetURL(repo, version, "checksums.txt"),
 	}
+}
+
+// FetchBinary downloads urls, verifies the archive against the checksums file and returns the executable inside it.
+// A nil client means the anonymous release client.
+func FetchBinary(ctx context.Context, client *http.Client, urls ArchiveURLs, binaryName, goos, goarch string, progress io.Writer) ([]byte, error) {
+	if client == nil {
+		client = newReleaseClient()
+	}
+	fmt.Fprintln(progress, "axm upgrade: downloading archive...")
+	archive, sums, err := downloadAll(ctx, client, urls)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintln(progress, "axm upgrade: verifying checksum...")
+	if err := verifyChecksum(archive, sums, goos, goarch); err != nil {
+		return nil, fmt.Errorf("%w (artifacts: %s, %s)", err, urls.Archive, urls.Checksums)
+	}
+	binary, err := extractBinary(archive, binaryName, goos)
+	if err != nil {
+		return nil, fmt.Errorf("%w (archive: %s)", err, urls.Archive)
+	}
+	return binary, nil
 }
 
 func downloadAll(ctx context.Context, client *http.Client, urls ArchiveURLs) (archive, sums []byte, err error) {
@@ -180,7 +197,7 @@ func downloadOne(ctx context.Context, client *http.Client, label, url string, ma
 // whitespace run; tolerates the `*` binary-mode marker
 // (`<sum> *<filename>`) some tools emit.
 func verifyChecksum(archive, sums []byte, goos, goarch string) error {
-	want := fmt.Sprintf("%s_%s_%s%s", archiveProjectName, goos, goarch, ArchiveExt(goos))
+	want := ArchiveName(goos, goarch)
 	var expected string
 	sc := bufio.NewScanner(bytes.NewReader(sums))
 	// Default Scanner buffer is 64 KiB; checksums.txt files are tiny
