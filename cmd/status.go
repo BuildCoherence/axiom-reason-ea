@@ -89,7 +89,10 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 		entry, ok := published[path]
-		if !ok || entry.ContentHash != axmindex.NormalizedHash(src) {
+		if ok && entry.ContentHash == axmindex.NormalizedHash(src) {
+			continue
+		}
+		if !matchesTemplate(cmd.Context(), idx.Root(), path, src) {
 			modified = append(modified, path)
 		}
 	}

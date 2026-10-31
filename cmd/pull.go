@@ -139,7 +139,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		head.SnapshotFileID, head.PublishedAt.UTC().Format(time.RFC3339), strings.ToLower(username))
 	next := []byte(header + responses[0].Content)
 
-	modified := localExists && !localMatchesSync(published, current) && !matchesTemplate(ctx, idx.Root(), current)
+	modified := localExists && !localMatchesSync(published, current) && !matchesTemplate(ctx, idx.Root(), axiomsLeanPath, current)
 	if modified && !pullForce {
 		fmt.Fprint(cmd.ErrOrStderr(), renderAxiomsDiff(current, next))
 		return errors.New("Axioms.lean has local changes; re-run with --force to save it as Axioms.lean.orig and replace it")
@@ -207,10 +207,10 @@ func localAxiomsInSync(idx *axmindex.Index, remoteFileID string) (bool, error) {
 	return entry.ContentHash == axmindex.NormalizedHash(content), nil
 }
 
-// matchesTemplate reports whether current is the Axioms.lean the Workspace's
-// lean-client template shipped, which holds no user edits to protect.
-func matchesTemplate(ctx context.Context, root string, current []byte) bool {
-	shipped, ok := upgrade.TemplateFile(ctx, root, axiomsLeanPath)
+// matchesTemplate reports whether current is the content of path the
+// Workspace's lean-client template shipped, which holds no user edits.
+func matchesTemplate(ctx context.Context, root, path string, current []byte) bool {
+	shipped, ok := upgrade.TemplateFile(ctx, root, path)
 	return ok && axmindex.NormalizedHash(shipped) == axmindex.NormalizedHash(current)
 }
 

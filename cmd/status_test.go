@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/agentskills"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/axmindex"
 	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/corpus/corpustest"
+	"github.com/BuildCoherence/axiom-reason-ea/v2/internal/upgrade"
 )
 
 // runStatusCmd drives `axm status` end-to-end with cobra wired up so
@@ -339,5 +341,93 @@ func TestStatus_UnreadableFactsDegradeWithoutFailing(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout missing %q; got:\n%s", want, stdout)
 		}
+	}
+}
+
+// templateLakefile pins the lean-client template version ver.
+func templateLakefile(ver string) string {
+	return "import Lake\nopen Lake DSL\npackage axiomClient where\n  version := v!\"" + ver + "\"\n"
+}
+
+// commitTemplateVersion writes files into repo and commits them tagged v<ver>.
+func commitTemplateVersion(t *testing.T, repo, ver string, files map[string]string) {
+	t.Helper()
+	files["lakefile.lean"] = templateLakefile(ver)
+	for name, body := range files {
+		writeTestFile(t, filepath.Join(repo, filepath.FromSlash(name)), body)
+	}
+	runGit(t, repo, "add", "-A")
+	runGit(t, repo, "commit", "-qm", "template "+ver)
+	runGit(t, repo, "tag", "v"+ver)
+}
+
+const oldTemplateVersion = "1.9.0"
+
+// statusTemplateWorkspace clones a two-version template at cloneVer the way
+// `axm init` does and, when cloneVer is the older one, upgrades it to the
+// current version the way `axm upgrade` does.
+func statusTemplateWorkspace(t *testing.T, cloneVer string) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not available in this test environment")
+	}
+	setTestHome(t)
+	repo := t.TempDir()
+	runGit(t, repo, "init", "-q")
+	commitTemplateVersion(t, repo, oldTemplateVersion, map[string]string{
+		axiomsLeanPath:                    "import Axiom\n\nuser_axioms {\n}\n",
+		"Workspace/InitialWorkspace.lean": "def start : Nat := 1\n",
+	})
+	commitTemplateVersion(t, repo, leanClientTag, map[string]string{
+		axiomsLeanPath:                    templateAxioms + "-- starter\n",
+		"Workspace/InitialWorkspace.lean": "def start : Nat := 2\n",
+	})
+	root := filepath.Join(t.TempDir(), "ws")
+	if err := runClone(io.Discard, repo, "v"+cloneVer, root); err != nil {
+		t.Fatalf("runClone: %v", err)
+	}
+	if cloneVer == leanClientTag {
+		return root
+	}
+	runGit(t, root, "config", "user.name", "ws")
+	runGit(t, root, "config", "user.email", "ws@example.invalid")
+	if _, err := upgrade.RunWorkspaceUpgrade(context.Background(), upgrade.WorkspaceOptions{
+		RepoDir: root, NewTag: leanClientTag, Yes: true, NonTTY: true, Stdout: io.Discard, Stderr: io.Discard,
+	}); err != nil {
+		t.Fatalf("RunWorkspaceUpgrade: %v", err)
+	}
+	return root
+}
+
+// TestStatus_UntouchedTemplateFilesAreNotModified: template files nobody
+// edited are not the user's changes, whether `axm init` cloned them or
+// `axm upgrade` merged them in; an edit and a new file still are.
+func TestStatus_UntouchedTemplateFilesAreNotModified(t *testing.T) {
+	for name, cloneVer := range map[string]string{"init": leanClientTag, "upgrade": oldTemplateVersion} {
+		t.Run(name, func(t *testing.T) {
+			root := statusTemplateWorkspace(t, cloneVer)
+			stdout, stderr, err := runStatusCmd(t, root)
+			if err != nil {
+				t.Fatalf("runStatus err = %v\nstderr=%s", err, stderr)
+			}
+			for _, want := range []string{"Template:      " + leanClientTag + "\n", "Local files:   2 (0 modified)\n"} {
+				if !strings.Contains(stdout, want) {
+					t.Errorf("stdout missing %q; got:\n%s", want, stdout)
+				}
+			}
+			if strings.Contains(stdout, "Modified:") {
+				t.Errorf("untouched template reported as modified; got:\n%s", stdout)
+			}
+
+			writeTestFile(t, filepath.Join(root, axiomsLeanPath), templateAxioms+"def mine : Nat := 1\n")
+			writeTestFile(t, filepath.Join(root, "Workspace", "Mine.lean"), "def mine : Nat := 2\n")
+			stdout, stderr, err = runStatusCmd(t, root)
+			if err != nil {
+				t.Fatalf("runStatus err = %v\nstderr=%s", err, stderr)
+			}
+			if !strings.Contains(stdout, "Modified:\n  Axioms.lean\n  Workspace/Mine.lean\n") {
+				t.Errorf("user edit and new file not both reported; got:\n%s", stdout)
+			}
+		})
 	}
 }
