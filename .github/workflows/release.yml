@@ -57,6 +57,12 @@ jobs:
           npm run build
           npm run check:assets
 
+      # Fails naming the URL when a corpus page is not emitted or renders
+      # without its text, or an emitted page links outside the export.
+      - name: archive-fidelity-crawl
+        working-directory: viewer
+        run: node scripts/archive-fidelity-crawl.mjs out
+
       - name: Build the site tarball
         run: |
           mkdir -p .release

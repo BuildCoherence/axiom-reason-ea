@@ -1,0 +1,4 @@
+{
+  "files": [{ "id": "a1b2c3d4", "publisher": "Alice", "deps": [] }],
+  "theorems": ["e0000001"]
+}
