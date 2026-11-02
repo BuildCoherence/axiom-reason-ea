@@ -59,25 +59,21 @@ func init() {
 // runCheck resolves the seed files, expands and topo-sorts their closure,
 // and elaborates each file locally.
 func runCheck(cmd *cobra.Command, args []string) error {
-	// 1. Pre-flight: lake must be on PATH AND usable. The probe is
-	//    output-less and can stall on a cold elan, so cover it with a branded
-	//    spinner on stderr (a no-op on non-TTY / NO_COLOR / CI).
-	if lakeErr := progress.Spin(cmd.ErrOrStderr(), msgCheckingToolchain, func() error {
-		return transform.CheckLakeInstalled(cmd.Context())
-	}); lakeErr != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "axm check: %v\n", lakeErr)
-		fmt.Fprintln(cmd.ErrOrStderr(), "Install elan (the Lean toolchain manager) from https://lean-lang.org/install/")
-		fmt.Fprintln(cmd.ErrOrStderr(), "and re-run `axm check`.")
-		return lakeErr
-	}
-
-	// 2. Open the workspace.
+	// 1. Open the workspace.
 	idx, err := axmindex.Open(".")
 	if err != nil {
 		if errors.Is(err, axmindex.ErrNoWorkspace) {
 			return fmt.Errorf("not in an Axiom workspace — run `axm init` first or cd into an Axiom workspace")
 		}
 		return fmt.Errorf("opening workspace: %w", err)
+	}
+
+	// 2. Pre-flight: lake must be on PATH AND usable.
+	if lakeErr := probeLake(cmd, idx.Root()); lakeErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "axm check: %v\n", lakeErr)
+		fmt.Fprintln(cmd.ErrOrStderr(), "Install elan (the Lean toolchain manager) from https://lean-lang.org/install/")
+		fmt.Fprintln(cmd.ErrOrStderr(), "and re-run `axm check`.")
+		return lakeErr
 	}
 
 	// 3. Seed set.
@@ -160,11 +156,9 @@ func elaborateCheckFiles(cmd *cobra.Command, idx *axmindex.Index,
 
 	sp := progress.New(cmd.ErrOrStderr())
 	sp.Start(fmt.Sprintf("Checking %d file(s)", len(ordered)))
-	if err := transform.Build(cmd.Context(), idx.Root(), true, sp.LakeWriter()); err != nil {
+	if err := buildForTransform(cmd, idx.Root(), sp.LakeWriter()); err != nil {
 		sp.Stop()
-		fmt.Fprintf(cmd.ErrOrStderr(), "axm check: building the Lean workspace failed; run `lake build %s` in %s for the full log.\n",
-			strings.Join(transform.BuildTargets, " "), idx.Root())
-		return fmt.Errorf("axm check: %w", err)
+		return err
 	}
 	resps, invokeErr := invokeCheckTransforms(cmd.Context(), idx.Root(), transform.Request{
 		ServerTime: time.Now().UTC().Unix(),

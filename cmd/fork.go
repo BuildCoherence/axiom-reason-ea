@@ -83,9 +83,7 @@ func runFork(cmd *cobra.Command, args []string) error {
 
 	// Reverse mode shells to `lake exe axm_transform`; require lake on PATH
 	// only after the workspace floor has been checked.
-	if err := progress.Spin(cmd.ErrOrStderr(), msgCheckingToolchain, func() error {
-		return transform.CheckLakeInstalled(ctx)
-	}); err != nil {
+	if err := probeLake(cmd, idx.Root()); err != nil {
 		return err
 	}
 
@@ -157,6 +155,10 @@ func runFork(cmd *cobra.Command, args []string) error {
 	}
 	xfSpin := progress.New(errW)
 	xfSpin.Start("Converting to workspace form")
+	if err := buildForTransform(cmd, idx.Root(), xfSpin.LakeWriter()); err != nil {
+		xfSpin.Stop()
+		return err
+	}
 	resps, err := transform.Invoke(ctx, idx.Root(), req, xfSpin.LakeWriter())
 	if err != nil || len(collectFailedResponses(resps)) > 0 {
 		xfSpin.Stop()

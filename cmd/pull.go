@@ -86,9 +86,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := progress.Spin(cmd.ErrOrStderr(), msgCheckingToolchain, func() error {
-		return transform.CheckLakeInstalled(ctx)
-	}); err != nil {
+	if err := probeLake(cmd, idx.Root()); err != nil {
 		return err
 	}
 	lock, err := acquireWorkspaceLock(idx)
@@ -128,7 +126,14 @@ func runPull(cmd *cobra.Command, args []string) error {
 		FileID:           head.SnapshotFileID,
 		ReverseImportMap: reverseWorkspaceImportMap(published),
 	}}}
-	responses, err := transform.Invoke(ctx, idx.Root(), req, cmd.ErrOrStderr())
+	xfSpin := progress.New(cmd.ErrOrStderr())
+	xfSpin.Start("Converting to workspace form")
+	if err := buildForTransform(cmd, idx.Root(), xfSpin.LakeWriter()); err != nil {
+		xfSpin.Stop()
+		return err
+	}
+	responses, err := transform.Invoke(ctx, idx.Root(), req, xfSpin.LakeWriter())
+	xfSpin.Stop()
 	if err != nil {
 		return err
 	}

@@ -348,7 +348,7 @@ func TestInvokeMissingBinary(t *testing.T) {
 func TestCheckLakeInstalled(t *testing.T) {
 	// Case 1: lake not on PATH -> error.
 	t.Setenv("PATH", "")
-	err := CheckLakeInstalled(context.Background())
+	err := CheckLakeInstalledIn(context.Background(), "")
 	if err == nil {
 		t.Fatal("want error with empty PATH")
 	}
@@ -382,8 +382,8 @@ func TestCheckLakeInstalledPresent(t *testing.T) {
 		"printf '%s' \"$*\" > '"+argsFile+"'\nexit 0\n",
 		"@echo %*> \""+argsFile+"\"\r\n@exit /b 0\r\n")
 	t.Setenv("PATH", dir)
-	if err := CheckLakeInstalled(context.Background()); err != nil {
-		t.Fatalf("CheckLakeInstalled err = %v, want nil", err)
+	if err := CheckLakeInstalledIn(context.Background(), ""); err != nil {
+		t.Fatalf("CheckLakeInstalledIn err = %v, want nil", err)
 	}
 	got, err := os.ReadFile(argsFile)
 	if err != nil {
@@ -407,7 +407,7 @@ func TestCheckLakeInstalled_ElanNoDefaultToolchain(t *testing.T) {
 		"echo 'error: no default toolchain configured' >&2\nexit 1\n",
 		"@echo error: no default toolchain configured 1>&2\r\n@exit /b 1\r\n")
 	t.Setenv("PATH", dir)
-	err := CheckLakeInstalled(context.Background())
+	err := CheckLakeInstalledIn(context.Background(), "")
 	if err == nil {
 		t.Fatal("want error when elan reports no default toolchain")
 	}
