@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+Disallow: /local
+
+Sitemap: https://axiomreason.com/sitemap.xml

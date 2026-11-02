@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { hrefs, visibleText } from "../scripts/archive-fidelity-crawl.mjs";
 import { SEARCH_INDEX_PATH } from "../src/lib/search-index.mjs";
 import { createExportServer, listen } from "./static-server.mjs";
 
@@ -23,27 +24,6 @@ function walk(dir) {
     const p = path.join(dir, name);
     return statSync(p).isDirectory() ? walk(p) : [p];
   });
-}
-
-// The text a reader sees with JavaScript disabled: markup without scripts.
-function visibleText(html) {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
-function hrefs(html) {
-  const out = [];
-  for (const tag of html.match(/<a\b[^>]*>/g) ?? []) {
-    const m = tag.match(/\bhref="([^"]*)"/);
-    if (m) out.push(m[1].replace(/&amp;/g, "&"));
-  }
-  return out;
 }
 
 let server;

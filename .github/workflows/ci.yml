@@ -133,7 +133,9 @@ jobs:
       # a Windows reserved device name in any emitted path part.
       - name: Fixture asset budget
         run: npm run check:assets
-      - name: Emitted-tree, asset-budget and search-index tests
+      - name: Fixture archive-fidelity-crawl
+        run: VIEWER_CORPUS_DIR=test/fixtures/corpus node scripts/archive-fidelity-crawl.mjs out
+      - name: Emitted-tree, asset-budget, fidelity-crawl and search-index tests
         run: npm run test:export
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
@@ -145,6 +147,9 @@ jobs:
       - name: Published Corpus asset budget
         if: hashFiles('corpus/corpus.json') != ''
         run: npm run check:assets
+      - name: Published Corpus archive-fidelity-crawl
+        if: hashFiles('corpus/corpus.json') != ''
+        run: node scripts/archive-fidelity-crawl.mjs out
 
   prepublication-gates:
     runs-on: ubuntu-latest

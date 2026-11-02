@@ -1,0 +1,6 @@
+{
+  "file": {
+    "id": "a1b2c3d4",
+    "content": "axiom Person : Type\n\ntheorem kind_all : ∀ p : Person, p = p := fun _ => rfl\n"
+  }
+}
