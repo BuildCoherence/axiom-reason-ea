@@ -23,10 +23,11 @@ import (
 
 const templateRepo = "https://github.com/BuildCoherence/axiom-client.git"
 
-// releasedTags are the 1.x template tags a Workspace can sit on.
+// releasedTags are the 1.x template tags a Workspace can sit on. v1.1.6-beta
+// is absent: no released CLI ever cloned it, and it is not on the main line.
 var releasedTags = []string{
 	"v1.0.0-beta", "v1.1.0-beta", "v1.1.1-beta", "v1.1.2-beta",
-	"v1.1.3-beta", "v1.1.4-beta", "v1.1.5-beta", "v1.1.6-beta",
+	"v1.1.3-beta", "v1.1.4-beta", "v1.1.5-beta",
 }
 
 // errTargetMissing means the target tag is not published on the repository.
