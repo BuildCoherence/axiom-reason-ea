@@ -155,6 +155,15 @@ func TestBlockingDefects(t *testing.T) {
 			secret: "2001:db8",
 		},
 		{
+			name: "ipv6 beside a token id",
+			mutate: func(_ *testing.T, f *fixture) {
+				profile(f)["token_id"] = "Foo.Bar::src::3"
+				profile(f)["last_ip"] = "2001:db8:85a3::8a2e:370:7334"
+			},
+			want:   "block pii data/u/alice.json#/profile/last_ip ipv6",
+			secret: "2001:db8",
+		},
+		{
 			name: "user agent in data",
 			mutate: func(_ *testing.T, f *fixture) {
 				profile(f)["ua"] = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
@@ -238,6 +247,20 @@ func TestLeanSourceHitsAreReviewOnly(t *testing.T) {
 	}
 	if strings.Contains(r.stdout, "example.com") {
 		t.Fatalf("diagnostics echo a planted value:\n%s", r.stdout)
+	}
+}
+
+// Validator token ids end in `::<i>`, which parses as IPv6.
+func TestTokenIDsAreNotScanned(t *testing.T) {
+	f := cleanFixture()
+	def := f.json["data/def/bbbb0001.json"].(map[string]any)["def"].(map[string]any)
+	def["source_tokens"] = []any{map[string]any{"token_id": "Foo.Bar::src::3"}, map[string]any{"token_id": "c::author"}}
+	r := runCLI(t, gateOptions{skipLake: true}, f.write(t))
+	if r.code != exitPass {
+		t.Fatalf("exit %d, want %d\n%s", r.code, exitPass, r.stdout)
+	}
+	if got := r.lines(); !reflect.DeepEqual(got, []string{cleanReview}) {
+		t.Fatalf("findings %q, want only %q", got, cleanReview)
 	}
 }
 
