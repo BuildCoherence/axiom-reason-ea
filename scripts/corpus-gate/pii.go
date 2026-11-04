@@ -37,6 +37,11 @@ var leanSourceKeys = map[string]bool{
 	"local_name": true, "searchable_name": true, "type_head": true, "axiom_name": true, "conclusion_prop": true,
 }
 
+// structuralKeys name JSON fields whose strings are ids the Lean validator
+// builds from declaration names (`<decl>::src::<i>`), which the qualified_name
+// fields already carry; their `::<i>` suffix would otherwise read as IPv6.
+var structuralKeys = map[string]bool{"token_id": true}
+
 // piiKinds lists the PII pattern kinds found in s, sorted.
 func piiKinds(s string) []string {
 	found := map[string]bool{}
@@ -174,6 +179,9 @@ func (g *gate) scanJSON(rel string, v any, ptr string, lean bool) {
 		for _, k := range keys {
 			for _, kind := range append(piiKinds(k), g.literals.wholeValue(k)...) {
 				g.add(severityBlock, "pii", rel, "#"+ptr+"/<key>", kind)
+			}
+			if structuralKeys[k] {
+				continue
 			}
 			g.scanJSON(rel, v[k], ptr+"/"+g.pointerSegment(k), lean || leanSourceKeys[k])
 		}
