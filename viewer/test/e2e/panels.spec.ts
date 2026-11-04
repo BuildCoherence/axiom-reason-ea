@@ -47,6 +47,27 @@ test.describe("file page", () => {
     await expectReferencedBy(page, []);
   });
 
+  test("a source identifier opens its def panel, which outlines the file", async ({ page }) => {
+    await page.goto(at("/f/a1b2c3d4"));
+    await page.locator('.ce-identifier[data-def-id="p0000001"]').first().click();
+    const panel = declarationPanel(page);
+    await expect(panel.getByRole("region", { name: "Identity" })).toContainText("Ethics.Person");
+    const outline = panel.getByRole("region", { name: "In this file" });
+    for (const name of ["Person", "Kind", "golden_rule"]) {
+      await expect(outline.getByRole("button", { name, exact: true })).toBeVisible();
+    }
+  });
+
+  test("the command palette filters the file's decls and opens the pick", async ({ page }) => {
+    await page.goto(at("/f/a1b2c3d4"));
+    await page.keyboard.press("/");
+    const palette = page.getByRole("dialog", { name: "Jump to declaration" });
+    await palette.getByRole("combobox").fill("Kind");
+    await palette.getByRole("option", { name: /Ethics\.Kind/ }).click();
+    const identity = declarationPanel(page).getByRole("region", { name: "Identity" });
+    await expect(identity).toContainText("Ethics.Kind");
+  });
+
   test("proposition panel and its holders open with data", async ({ page }) => {
     await page.goto(at("/f/a1b2c3d4?prop=q0000001"));
     await expect(propositionPanel(page).getByRole("region", { name: "Adoption" })).toBeVisible();

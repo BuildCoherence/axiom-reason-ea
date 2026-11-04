@@ -6,6 +6,7 @@ import {
   highlightSourceToHast,
 } from "@/components/lean-ui/lean-code";
 import { buildDecorations } from "@/components/lean-ui/ce-file-decorations";
+import { encodeHast } from "@/components/lean-ui/hast-wire.mjs";
 import { loadCorpusIndex, loadPageData } from "@/lib/page-data";
 
 import { CeFileHeader } from "./ce-file-header";
@@ -51,6 +52,15 @@ export default async function CeFilePage({
   // source as text children) — never as raw HTML.
   const sourceHast = await highlightSourceToHast(data.content, { decorations });
 
+  // Client props are serialised into the page's RSC payload, so the hast
+  // crosses in its compact wire form and the body gets only the decl labels
+  // it reads; the token trees stay on the server.
+  const declLabels = decls.map((d) => ({
+    def_id: d.def_id,
+    local_name: d.local_name,
+    qualified_name: d.qualified_name,
+  }));
+
   // The workbench wrapper covers the viewport below the nav; `CeFileBody`
   // flex-grows inside it and the status bar pins to the bottom edge.
   return (
@@ -60,8 +70,8 @@ export default async function CeFilePage({
     >
       <CeFileBody
         fileId={data.id}
-        hast={sourceHast}
-        decls={decls}
+        hast={encodeHast(sourceHast)}
+        decls={declLabels}
         header={
           <CeFileHeader
             fileId={data.id}

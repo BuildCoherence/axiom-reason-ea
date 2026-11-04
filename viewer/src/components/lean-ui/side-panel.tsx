@@ -36,7 +36,7 @@ import {
   SIDE_PANEL_ID,
 } from "./types";
 import type {
-  Decl,
+  DeclLabel,
   DeclarationMember,
   DefData,
   TheoremStatement,
@@ -206,7 +206,7 @@ export interface SidePanelProps {
    * section entirely (e.g. on the profile page, where the panel is not
    * anchored to a file).
    */
-  fileOutline?: Decl[] | null;
+  fileOutline?: DeclLabel[] | null;
   /**
    * Outline row click — host appends the picked decl onto the unified
    * drill-down stack (same call shape and semantics as every other
@@ -922,7 +922,7 @@ function OutlineSection({
   currentDefId,
   onSelect,
 }: {
-  outline: Decl[];
+  outline: DeclLabel[];
   currentDefId: string | null;
   onSelect: (def_id: string) => void;
 }) {
@@ -1378,7 +1378,7 @@ function PanelBody({
   bodyExtras: React.ReactNode;
   def_data: DefData;
   view: ViewChoice;
-  fileOutline: Decl[] | null;
+  fileOutline: DeclLabel[] | null;
   currentDefId: string | null;
   showTheoremStatement: boolean;
   popover?: IdentifierPopoverHandlers;
