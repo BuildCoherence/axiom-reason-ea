@@ -75,9 +75,10 @@ func CheckLakeInstalledIn(ctx context.Context, dir string) error {
 }
 
 // BuildTargets are the Lake targets `lake exe axm_transform` needs at run
-// time: the exe itself, and the Axiom library whose oleans the elaborated
-// workspace files import. `lake exe` builds only the exe.
-var BuildTargets = []string{"axm_transform", "Axiom"}
+// time: the exe itself, the Axiom library, and Env, the fetched corpus files
+// under `.axiomdata/files/A/` that forks and Workspace files import. `lake
+// exe` builds only the exe.
+var BuildTargets = []string{"axm_transform", "Axiom", "Env"}
 
 // Build runs `lake build` on BuildTargets in workspaceRoot, writing Lake's
 // stdout and stderr to out. quiet passes -q, which keeps an up-to-date build

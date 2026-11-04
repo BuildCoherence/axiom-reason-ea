@@ -27,7 +27,7 @@ var initCmd = &cobra.Command{
 into the target directory (default ` + "`.`" + `), sets up skills for the selected
 AI agents, installs the Published Corpus and the Axiom Site Archive under
 ~/.axiom (as ` + "`axm upgrade`" + ` does), and pre-warms
-` + "`lake build axm_transform Axiom`" + ` so the first ` + "`axm check`" + ` is fast.
+` + "`lake build axm_transform Axiom Env`" + ` so the first ` + "`axm check`" + ` is fast.
 Aborts if the target directory is non-empty.`,
 	Args:         cobra.MaximumNArgs(1),
 	SilenceUsage: true,
