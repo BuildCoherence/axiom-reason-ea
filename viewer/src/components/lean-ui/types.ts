@@ -381,6 +381,14 @@ export interface Decl {
 }
 
 /**
+ * The fields of a `Decl` the file page's client body reads (outline, command
+ * palette, sticky header, j/k stepping). The page projects its decls to this
+ * shape so the token trees, which only the server-side decorations consume,
+ * stay out of the client payload.
+ */
+export type DeclLabel = Pick<Decl, "def_id" | "local_name" | "qualified_name">;
+
+/**
  * The `def` payload of `data/def/<id>.json`. The side panel's
  * primary data source for cross-file panel anchoring.
  */

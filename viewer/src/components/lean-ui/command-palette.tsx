@@ -11,7 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-import type { Decl } from "./types";
+import type { DeclLabel } from "./types";
 import styles from "./command-palette.module.css";
 
 // "Jump to declaration" palette — opens on `/` from the file body, closes on
@@ -37,7 +37,7 @@ export interface CommandPaletteProps {
   /** Parent toggles `open`. Bound to Radix Dialog's `onOpenChange`. */
   onOpenChange: (open: boolean) => void;
   /** All file-level decls — palette filters this list. */
-  decls: Decl[];
+  decls: DeclLabel[];
   /**
    * Called when the visitor picks a row. Parent scrolls the matching DOM
    * element into view AND opens the side panel anchored to that decl.
@@ -86,7 +86,7 @@ export function CommandPalette({
   // Empty query → show the full list in source order. Non-empty → run fuse;
   // fuse preserves its ranked order so the visitor's typing surfaces the
   // most-relevant matches first.
-  const visible = React.useMemo<Decl[]>(() => {
+  const visible = React.useMemo<DeclLabel[]>(() => {
     if (query.trim() === "") return decls;
     return fuse.search(query).map((r) => r.item);
   }, [decls, fuse, query]);

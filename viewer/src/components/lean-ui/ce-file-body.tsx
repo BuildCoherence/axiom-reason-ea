@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useHotkeys } from "react-hotkeys-hook";
-import type { Root } from "hast";
 
 import { HoldersModal } from "@/components/theorem-flowchart/holders-modal";
 import type { DrillInRequest } from "@/components/theorem-flowchart/types";
@@ -11,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 
 import { CommandPalette } from "./command-palette";
 import { cssAttrEscape } from "./dom-utils";
+import { decodeHast, type HastWire } from "./hast-wire.mjs";
 import {
   IdentifierPopoverHost,
   IDENTIFIER_POPOVER_CONTENT_ID,
@@ -31,7 +31,7 @@ import { usePropData } from "./use-prop-data";
 import { useSelection } from "./use-selection";
 import { useFocusMode } from "./use-focus-mode";
 import type { IdentifierPopoverHandlers } from "./use-identifier-popover";
-import type { Decl, TokenTag, ViewChoice } from "./types";
+import type { DeclLabel, TokenTag, ViewChoice } from "./types";
 import styles from "./ce-file-body.module.css";
 
 // CE file page body — the thin Client Component that renders the server-
@@ -78,16 +78,17 @@ export interface CeFileBodyProps {
   /** This file's `<base50>` id. */
   fileId: string;
   /**
-   * Server-decorated Shiki hast (HTML AST) for the entire file's source.
-   * Rendered as a real React element tree via `renderHast`. hast is a plain,
-   * JSON-serialisable object tree, so it crosses the RSC → client boundary as a
-   * prop fine. Safety is NOT a matter of provenance: some decoration properties
+   * Server-decorated Shiki hast (HTML AST) for the entire file's source, in
+   * the compact `encodeHast` wire form (it is serialised into the page's RSC
+   * payload, so its size counts against the per-file asset limit). Decoded
+   * and rendered as a real React element tree via `renderHast`. Safety is
+   * NOT a matter of provenance: some decoration properties
    * (data-qualified-name, data-inlined-type-summary) ARE source-derived; the
    * invariant is that we set every attribute as a React prop (React escapes
    * them) and emit the source as React text children — no value is ever placed
    * in a raw-HTML / non-escaping context.
    */
-  hast: Root;
+  hast: HastWire;
   /**
    * Server-rendered file header. Rendered inside the shell's main column
    * (above the source body, inside the 920px reading-column constraint).
@@ -96,16 +97,16 @@ export interface CeFileBodyProps {
    */
   header: React.ReactNode;
   /**
-   * Per-decl envelopes for this file (the same array `buildDecorations`
-   * consumes). Used by the sticky-decl-header overlay to look up the
-   * currently-topmost decl's `local_name` / `qualified_name` from its
-   * `def_id` (read off the source body's `[data-decl-wrapper]` token).
-   * Empty array when the file has no decls. The full envelopes are
-   * passed (not a `[def_id, label]` projection) so the overlay can be
-   * extended without changing the wire shape — and the overlay's lookup
-   * runs at click time, never per scroll tick.
+   * This file's decls in source order, projected to their labels (the
+   * array `buildDecorations` consumes, minus the token trees). Used by the
+   * outline, the command palette, j/k stepping, and the sticky-decl-header
+   * overlay, which looks up the currently-topmost decl's `local_name` /
+   * `qualified_name` from its `def_id` (read off the source body's
+   * `[data-decl-wrapper]` token) at click time, never per scroll tick.
+   * Empty array when the file has no decls. The full envelopes are not
+   * passed: they would be serialised into the page a second time.
    */
-  decls: Decl[];
+  decls: DeclLabel[];
 }
 
 // Width of the line-number gutter, in rem. Used by the click-on-gutter
@@ -345,7 +346,10 @@ export function CeFileBody({ fileId, hast, header, decls }: CeFileBodyProps) {
   // walker reads handlers from context, not closure). `renderHast` turns the
   // `<pre>`/`<code>`/token `<span>`s Shiki emits into normal React elements;
   // identifier `<span>`s become interactive <IdentifierSpan>s.
-  const tree = React.useMemo(() => renderHast(hast, "src"), [hast]);
+  const tree = React.useMemo(
+    () => renderHast(decodeHast(hast), "src"),
+    [hast],
+  );
 
   // ---- Selected-decl highlight + scroll ---------------------------------
   //

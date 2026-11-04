@@ -96,6 +96,20 @@ describe("emitted tree", () => {
       exportedUsers.map((name) => `${name}.html`),
     );
   });
+
+  // Each file page is one asset under the per-file limit; its payload carries
+  // the highlighted source once, not the decls' token trees beside it.
+  test("file page payloads carry no decl token trees or hast boilerplate", () => {
+    for (const { id } of corpus.files) {
+      assert.ok(filePage(id).decls.length > 0, `${id} fixture has decls`);
+      for (const ext of ["html", "txt"]) {
+        const page = readFileSync(path.join(OUT, `f/${id}.${ext}`), "utf8");
+        for (const key of ["source_tokens", "type_tokens", "tagName"]) {
+          assert.ok(!page.includes(key), `f/${id}.${ext} carries ${key}`);
+        }
+      }
+    }
+  });
 });
 
 describe("prerendered content without JavaScript", () => {
