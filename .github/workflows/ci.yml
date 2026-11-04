@@ -223,6 +223,18 @@ jobs:
           go build -o "$RUNNER_TEMP/bin/axm" ./cmd/axm
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/bin/axm" init "$RUNNER_TEMP/ws" --agents none
+      - name: DIAGNOSTIC fork then check online
+        continue-on-error: true
+        run: |
+          axm init "$RUNNER_TEMP/diag" --agents none
+          cd "$RUNNER_TEMP/diag"
+          axm fetch ta3nj1a4
+          axm fork ta3nj1a4 Workspace/Fork.lean
+          head -5 Workspace/Fork.lean
+          ls .lake/build/lib/lean 2>&1 | head
+          axm check || echo "CHECK FAILED ONLINE rc=$?"
+          lake build Env 2>&1 | tail -3
+          axm check && echo "CHECK PASSED AFTER lake build Env"
       - name: Workspace commands with no network
         working-directory: ${{ runner.temp }}/ws
         run: |
