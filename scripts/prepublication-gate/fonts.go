@@ -79,15 +79,21 @@ func (g *gate) corpusLeg(ctx context.Context) ([]finding, error) {
 		return nil, err
 	}
 	out, err := g.run(ctx, g.root, exe, corpusDir)
+	var ce *cmdError
+	if errors.As(err, &ce) && ce.code == exitBlock {
+		return corpusBlocking(out), nil
+	}
+	return nil, err
+}
+
+// corpusBlocking keeps the corpus gate's blocking lines; its review lines are
+// for the developer's ruling and do not fail publication.
+func corpusBlocking(out []byte) []finding {
 	var findings []finding
 	for line := range strings.Lines(string(out)) {
-		if line = strings.TrimSpace(line); line != "" {
+		if line = strings.TrimSpace(line); strings.HasPrefix(line, "block ") {
 			findings = append(findings, finding{"corpus", corpusDir, line})
 		}
 	}
-	var ce *cmdError
-	if errors.As(err, &ce) && ce.code == exitBlock {
-		return findings, nil
-	}
-	return findings, err
+	return findings
 }

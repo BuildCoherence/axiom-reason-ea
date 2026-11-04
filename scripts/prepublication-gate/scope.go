@@ -304,7 +304,7 @@ func (c *collector) edits() error {
 	for start := 0; start < len(c.order); start += graphqlBatch {
 		ids := c.order[start:min(start+graphqlBatch, len(c.order))]
 		quoted, _ := json.Marshal(ids)
-		query := fmt.Sprintf(`query { nodes(ids: %s) { id ... on UserContentEditable { %s } } }`, quoted, fmt.Sprintf(editsFields, ""))
+		query := fmt.Sprintf(`query { nodes(ids: %s) { id ... on Comment { %s } } }`, quoted, fmt.Sprintf(editsFields, ""))
 		var resp struct {
 			Data struct {
 				Nodes []*struct {
@@ -340,7 +340,7 @@ func (c *collector) edits() error {
 func (c *collector) moreEdits(id, cursor string) (*editsPage, error) {
 	qid, _ := json.Marshal(id)
 	qcur, _ := json.Marshal(cursor)
-	query := fmt.Sprintf(`query { node(id: %s) { ... on UserContentEditable { %s } } }`, qid, fmt.Sprintf(editsFields, ", after: "+string(qcur)))
+	query := fmt.Sprintf(`query { node(id: %s) { ... on Comment { %s } } }`, qid, fmt.Sprintf(editsFields, ", after: "+string(qcur)))
 	var resp struct {
 		Data struct {
 			Node *struct {
