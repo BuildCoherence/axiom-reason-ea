@@ -1,0 +1,11 @@
+Published Corpus notice
+
+Each file under A/ belongs to its publisher, credited in corpus.json and AUTHORS.
+Coherence Labs redistributes these files as the public record of what the Axiom
+platform served publicly at the Publishing Freeze, under the terms in force when
+each file was published: section 8 of the Axiom Terms of Service where the
+publisher accepted them, and section 15 of the Axiom privacy notice. No further
+license is granted. The Apache-2.0 license of this repository covers its code
+only; it does not cover this corpus.
+
+Requests to remove a file go to support@coherencelabs.net and are honored.

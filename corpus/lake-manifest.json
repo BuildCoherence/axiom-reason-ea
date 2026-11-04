@@ -1,0 +1,15 @@
+{"version": "1.1.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/BuildCoherence/axiom-lib",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "ba3a485c6a01cde5ca66ae5c392b79296b624eb8",
+   "name": "AxiomLib",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "v1.0.6-beta",
+   "inherited": false,
+   "configFile": "lakefile.toml"}],
+ "name": "axiomCorpus",
+ "lakeDir": ".lake"}
