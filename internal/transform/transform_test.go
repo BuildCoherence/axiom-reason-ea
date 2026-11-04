@@ -479,8 +479,8 @@ func TestBuild_BuildsExeAndAxiomInWorkspace(t *testing.T) {
 		quiet bool
 		want  string
 	}{
-		{false, "build axm_transform Axiom"},
-		{true, "build -q axm_transform Axiom"},
+		{false, "build axm_transform Axiom Env"},
+		{true, "build -q axm_transform Axiom Env"},
 	} {
 		args, cwd := fakeRecordingLake(t, "0")
 		ws := t.TempDir()

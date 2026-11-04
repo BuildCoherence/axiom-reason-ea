@@ -232,7 +232,7 @@ func TestReverseTransform_BuildFailureStopsBeforeTransform(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%s succeeded with a failing lake build; want an error", tc.name)
 			}
-			if !strings.Contains(stderr, "lake build axm_transform Axiom") {
+			if !strings.Contains(stderr, "lake build axm_transform Axiom Env") {
 				t.Errorf("stderr = %q, want the lake build remedy", stderr)
 			}
 			if _, statErr := os.Stat(capture); !os.IsNotExist(statErr) {
