@@ -239,7 +239,8 @@ jobs:
           axm check
           axm status
           axm viewer --no-open --port 8765 & viewer=$!
-          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8765/f/ta3nj1a4 | grep -q Entity
+          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 -o page.html http://127.0.0.1:8765/f/ta3nj1a4
+          grep -q Entity page.html
           kill "$viewer"
           EOF
           unshare -rn bash -euxo pipefail "$RUNNER_TEMP/offline.sh"
