@@ -202,6 +202,48 @@ jobs:
       - name: Dependency licenses
         run: go run ./scripts/prepublication-gate -legs licenses
 
+  # A Workspace built online keeps working with no network: `check`, `pull` and
+  # `fork` run lake, which the import test in internal/upgrade cannot see.
+  offline-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/v4.2.4/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build a Workspace online
+        run: |
+          go build -o "$RUNNER_TEMP/bin/axm" ./cmd/axm
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/axm" init "$RUNNER_TEMP/ws" --agents none
+      - name: Workspace commands with no network
+        working-directory: ${{ runner.temp }}/ws
+        run: |
+          sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
+          cat > "$RUNNER_TEMP/offline.sh" <<'EOF'
+          ip link set lo up
+          axm pull sam
+          axm fetch ta3nj1a4
+          axm fork ta3nj1a4 Workspace/Fork.lean
+          axm search types Entity
+          axm query ta3nj1a4.Entity
+          axm modeling-refs bfo
+          echo "theorem offline_proof : True := trivial" >> Workspace/InitialWorkspace.lean
+          axm check
+          axm status
+          axm viewer --no-open --port 8765 & viewer=$!
+          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8765/f/ta3nj1a4 | grep -q Entity
+          kill "$viewer"
+          EOF
+          unshare -rn bash -euxo pipefail "$RUNNER_TEMP/offline.sh"
+
   corpus-gate:
     runs-on: ubuntu-latest
     permissions:
