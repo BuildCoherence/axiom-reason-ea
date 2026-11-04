@@ -16,3 +16,8 @@ condition = "AND"
 regexTarget = "match"
 paths = ['''(^|/)scripts/corpus-gate/gate_test\.go$''']
 regexes = ['''Xq3ZbK9mWfPtR2sLvN8cYd4HgJ1e''']
+
+[[allowlists]]
+description = "Corpus JSON: Lean-validator token ids are not API keys"
+regexTarget = "match"
+regexes = ['''token_id"\s*:''']
