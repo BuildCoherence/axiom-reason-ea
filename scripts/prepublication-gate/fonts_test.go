@@ -43,6 +43,19 @@ func TestCorpusLegSkipsWithoutCorpus(t *testing.T) {
 	r.has(t, "corpus skipped: no corpus/")
 }
 
+func TestCorpusLegKeepsOnlyBlockingLines(t *testing.T) {
+	out := []byte("review pii search-index.json#/types/1/type_head firebase-uid\n" +
+		"block pii data/f/x.json#/source email\n\n")
+	got := corpusBlocking(out)
+	want := []finding{{"corpus", "corpus", "block pii data/f/x.json#/source email"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findings:\n got %v\nwant %v", got, want)
+	}
+	if got := corpusBlocking([]byte("review pii a.json#/b firebase-uid\n")); got != nil {
+		t.Fatalf("review-only output gave findings %v", got)
+	}
+}
+
 func TestUnknownLegIsUsageError(t *testing.T) {
 	r := runGate(t, nil, nil, "-legs", "deny,nope")
 	if r.code != exitError {
