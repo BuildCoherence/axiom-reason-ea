@@ -123,7 +123,7 @@ jobs:
         run: go run ./scripts/template-merge -target v2.0.0
 
   viewer:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Playwright 1.58 has no chromium build for ubuntu-latest (26.04)
     defaults:
       run:
         working-directory: viewer
