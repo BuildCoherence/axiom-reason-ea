@@ -68,6 +68,29 @@ test.describe("file page", () => {
     await expect(identity).toContainText("Ethics.Kind");
   });
 
+  test("an outline pick replaces the open def panel", async ({ page }) => {
+    await page.goto(at("/f/a1b2c3d4?def=g0000001"));
+    const panel = declarationPanel(page);
+    const identity = panel.getByRole("region", { name: "Identity" });
+    await expect(identity).toContainText("golden_rule");
+    const outline = panel.getByRole("region", { name: "In this file" });
+    await outline.getByRole("button", { name: "Kind", exact: true }).click();
+    await expect(identity).toContainText("Ethics.Kind");
+    await expect(page).toHaveURL(/[?&]def=k0000001(&|$)/);
+  });
+
+  test("a palette pick replaces the open def panel", async ({ page }) => {
+    await page.goto(at("/f/a1b2c3d4?def=g0000001"));
+    const identity = declarationPanel(page).getByRole("region", { name: "Identity" });
+    await expect(identity).toContainText("golden_rule");
+    await page.keyboard.press("/");
+    const palette = page.getByRole("dialog", { name: "Jump to declaration" });
+    await palette.getByRole("combobox").fill("Person");
+    await palette.getByRole("option", { name: /Ethics\.Person/ }).click();
+    await expect(identity).toContainText("Ethics.Person");
+    await expect(page).toHaveURL(/[?&]def=p0000001(&|$)/);
+  });
+
   test("proposition panel and its holders open with data", async ({ page }) => {
     await page.goto(at("/f/a1b2c3d4?prop=q0000001"));
     await expect(propositionPanel(page).getByRole("region", { name: "Adoption" })).toBeVisible();
