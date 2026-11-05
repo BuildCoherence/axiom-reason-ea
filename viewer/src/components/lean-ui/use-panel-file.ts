@@ -17,40 +17,44 @@ export interface UsePanelFile<T> {
   retry: () => void;
 }
 
+interface Loaded<T> {
+  id: string;
+  data: T | null;
+  state: PanelState;
+  errorStatus: number | null;
+}
+
 /**
  * Loads one Viewer Page Data panel value for `id`. A result that lands after
- * `id` changed or the host unmounted is dropped.
+ * `id` changed or the host unmounted is dropped, and a value loaded for an
+ * earlier `id` is never returned for the current one.
  */
 export function usePanelFile<T>(
   id: string | null,
   load: (id: string) => Promise<T>,
 ): UsePanelFile<T> {
-  const [data, setData] = React.useState<T | null>(null);
-  const [state, setState] = React.useState<PanelState>("idle");
-  const [errorStatus, setErrorStatus] = React.useState<number | null>(null);
+  const [loaded, setLoaded] = React.useState<Loaded<T> | null>(null);
   const [retryNonce, setRetryNonce] = React.useState(0);
   const retry = React.useCallback(() => setRetryNonce((n) => n + 1), []);
 
   React.useEffect(() => {
-    setData(null);
-    setErrorStatus(null);
-    if (id === null) {
-      setState("idle");
-      return;
-    }
+    if (id === null) return;
     let cancelled = false;
-    setState("loading");
+    setLoaded({ id, data: null, state: "loading", errorStatus: null });
     load(id).then(
       (value) => {
         if (cancelled) return;
-        setData(value);
-        setState("loaded");
+        setLoaded({ id, data: value, state: "loaded", errorStatus: null });
       },
       (err: unknown) => {
         if (cancelled) return;
         console.error(`panel data for ${id} failed:`, err);
-        setErrorStatus(err instanceof PanelDataError ? err.status : null);
-        setState("error");
+        setLoaded({
+          id,
+          data: null,
+          state: "error",
+          errorStatus: err instanceof PanelDataError ? err.status : null,
+        });
       },
     );
     return () => {
@@ -58,5 +62,16 @@ export function usePanelFile<T>(
     };
   }, [id, load, retryNonce]);
 
-  return { data, state, errorStatus, retry };
+  if (id === null) {
+    return { data: null, state: "idle", errorStatus: null, retry };
+  }
+  if (loaded === null || loaded.id !== id) {
+    return { data: null, state: "loading", errorStatus: null, retry };
+  }
+  return {
+    data: loaded.data,
+    state: loaded.state,
+    errorStatus: loaded.errorStatus,
+    retry,
+  };
 }
