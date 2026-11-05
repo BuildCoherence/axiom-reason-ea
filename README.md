@@ -3,6 +3,13 @@
 `axm` is the Axiom command-line toolkit. It runs entirely on your machine: there is no account and no server. It
 installs the published Axiom corpus and a local viewer beside the CLI.
 
+## What is Axiom
+Axiom is an experiment with a new form of communication. That makes it difficult (or even counterproductive) to
+explain in prose.
+
+Rather than using our words to explain it, we recommend you ask your agent questions about this repo so you can
+understand its shape in your own words.
+
 ## Prerequisites
 
 - [git](https://git-scm.com/)
